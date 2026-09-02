@@ -10,7 +10,7 @@
 
   /* ---------- Spots ---------- */
   const SPOTS = [
-    { id: 'hood',     name: 'Hood',                where: 'Center of the hood, the marquee',      size: 'Large',  cm: '60 × 25 cm', in: '23.6 × 9.8 in',  floor: 1000, ratio: 2.4,       view: 'front34' },
+    { id: 'hood',     name: 'Hood',                where: 'Center of the hood, the marquee',      size: 'Large',  cm: '90 × 35 cm', in: '35.4 × 13.8 in', floor: 1000, ratio: 90 / 35,       view: 'front34' },
     { id: 'trunk',    name: 'Trunk lid',           where: 'Center of the trunk, under the badge', size: 'Large',  cm: '50 × 15 cm', in: '19.7 × 5.9 in',  floor: 1000, ratio: 50 / 15, view: 'rear' },
     { id: 'door-fl',  name: 'Driver door',         where: 'Front door, driver side',              size: 'Large',  cm: '60 × 30 cm', in: '23.6 × 11.8 in', floor: 750,  ratio: 2,       view: 'side-l' },
     { id: 'door-fr',  name: 'Passenger door',      where: 'Front door, passenger side',           size: 'Large',  cm: '60 × 30 cm', in: '23.6 × 11.8 in', floor: 750,  ratio: 2,       view: 'front34' },
@@ -122,7 +122,7 @@
       ];
     };
   }
-  const NU = 18, NV = 7;
+  const NU = 32, NV = 10;
   function meshOf(pl) {
     const f = surface(pl), g = [];
     for (let j = 0; j <= NV; j++) { const row = []; for (let i = 0; i <= NU; i++) row.push(f(i / NU, j / NV)); g.push(row); }
@@ -138,10 +138,10 @@
   }
 
   /* ---------- Stickers: the flat artwork before it is bent onto the car ---------- */
-  const SW = 1200;
+  const SW = 2048, SH = 1024; // power of two so WebGL can mipmap; artwork fills width, height = SW / ratio
   const stickerCache = new Map();
   function stickerCanvas(ratio) {
-    const c = document.createElement('canvas'); c.width = SW; c.height = Math.round(SW / ratio); return c;
+    const c = document.createElement('canvas'); c.width = SW; c.height = SH; c.artH = Math.min(SH, Math.round(SW / ratio)); return c;
   }
   function loadImage(src) {
     return new Promise(res => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = src; });
@@ -160,7 +160,7 @@
   }
   const SANS = '"Instrument Sans", "Helvetica Neue", Arial, sans-serif', SERIF = '"Instrument Serif", Georgia, serif';
   function textSticker(text, ratio, color, opts = {}) {
-    const c = stickerCanvas(ratio), ctx = c.getContext('2d'), W = c.width, H = c.height;
+    const c = stickerCanvas(ratio), ctx = c.getContext('2d'), W = c.width, H = c.artH;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = color;
     const fontOf = s => `${opts.style || ''} ${opts.weight || 700} ${s}px ${opts.family || SANS}`;
     let size = fitFontSize(ctx, text, fontOf, W * 0.9, H * (opts.cap || 0.66));
@@ -170,8 +170,8 @@
     return c;
   }
   const MARKS = {
-    hood:      r => textSticker('ACME ROBOTICS', r, '#141311'),
-    trunk:     r => { const c = stickerCanvas(r), x = c.getContext('2d'), H = c.height; x.fillStyle = '#1f2a5a';
+    hood:      r => textSticker('ACME', r, '#141311', { cap: 0.8 }),
+    trunk:     r => { const c = stickerCanvas(r), x = c.getContext('2d'), H = c.artH; x.fillStyle = '#1f2a5a';
                  x.textAlign = 'left'; x.textBaseline = 'middle';
                  const size = fitFontSize(x, 'northwind', s => `700 ${s}px ${SANS}`, c.width * 0.72, H * 0.7); x.font = `700 ${size}px ${SANS}`;
                  const tw = x.measureText('northwind').width, mark = size * 0.7, total = tw + mark + size * 0.25, x0 = (c.width - total) / 2;
@@ -179,14 +179,14 @@
                  x.fillText('northwind', x0 + mark + size * 0.25, H / 2 + size * 0.04); return c; },
     'door-fl': r => textSticker('KESTREL', r, '#c8341b', { weight: 600, spacing: 0.22, cap: 0.5 }),
     'door-fr': r => textSticker('Lumen', r, '#145a3a', { family: SERIF, style: 'italic', weight: 400, cap: 0.95 }),
-    'door-rl': r => { const c = stickerCanvas(r), x = c.getContext('2d'), H = c.height; x.fillStyle = x.strokeStyle = '#1f5fd6';
+    'door-rl': r => { const c = stickerCanvas(r), x = c.getContext('2d'), H = c.artH; x.fillStyle = x.strokeStyle = '#1f5fd6';
                  x.textAlign = 'left'; x.textBaseline = 'middle';
                  const size = fitFontSize(x, 'orbit', s => `700 ${s}px ${SANS}`, c.width * 0.6, H * 0.72); x.font = `700 ${size}px ${SANS}`;
                  const tw = x.measureText('orbit').width, R = size * 0.34, total = tw + R * 2.6 + size * 0.2, x0 = (c.width - total) / 2;
                  x.lineWidth = R * 0.4; x.beginPath(); x.arc(x0 + R, H / 2, R, 0, Math.PI * 2); x.stroke();
                  x.beginPath(); x.arc(x0 + R * 2.05, H / 2, R * 0.28, 0, Math.PI * 2); x.fill();
                  x.fillText('orbit', x0 + R * 2.6 + size * 0.2, H / 2 + size * 0.04); return c; },
-    'door-rr': r => { const c = stickerCanvas(r), x = c.getContext('2d'), H = c.height; x.fillStyle = '#141311';
+    'door-rr': r => { const c = stickerCanvas(r), x = c.getContext('2d'), H = c.artH; x.fillStyle = '#141311';
                  x.textAlign = 'left'; x.textBaseline = 'middle';
                  const size = fitFontSize(x, 'hexa', s => `700 ${s}px ${SANS}`, c.width * 0.6, H * 0.72); x.font = `700 ${size}px ${SANS}`;
                  const tw = x.measureText('hexa').width, R = size * 0.42, total = tw + R * 2 + size * 0.22, x0 = (c.width - total) / 2, cx = x0 + R, cy = H / 2;
@@ -197,7 +197,7 @@
   };
   async function imageSticker(src, ratio) {
     const im = await loadImage(src); if (!im) return null;
-    const c = stickerCanvas(ratio), ctx = c.getContext('2d'), W = c.width, H = c.height;
+    const c = stickerCanvas(ratio), ctx = c.getContext('2d'), W = c.width, H = c.artH;
     const k = Math.min((W * 0.94) / im.width, (H * 0.9) / im.height);
     const w = im.width * k, h = im.height * k;
     ctx.drawImage(im, (W - w) / 2, (H - h) / 2, w, h);
@@ -240,7 +240,7 @@
     ctx.restore();
   }
   function drawMesh(ctx, img, grid, k) {
-    const sw = img.width, sh = img.height;
+    const sw = img.width, sh = img.artH || img.height;
     for (let j = 0; j < NV; j++) for (let i = 0; i < NU; i++) {
       const sx0 = i / NU * sw, sx1 = (i + 1) / NU * sw, sy0 = j / NV * sh, sy1 = (j + 1) / NV * sh;
       const d = p => [p[0] * k, p[1] * k];
@@ -251,6 +251,58 @@
   }
   function tracePath(ctx, pts, k) {
     ctx.beginPath(); pts.forEach((p, i) => ctx[i ? 'lineTo' : 'moveTo'](p[0] * k, p[1] * k)); ctx.closePath();
+  }
+
+  /* ---------- WebGL vinyl renderer: textured mesh with mipmaps, anisotropic filtering and MSAA ---------- */
+  const glCache = new WeakMap();
+  function getGL(canvas) {
+    if (glCache.has(canvas)) return glCache.get(canvas);
+    const gl = canvas.getContext('webgl', { antialias: true, premultipliedAlpha: true, alpha: true, preserveDrawingBuffer: true });
+    if (!gl) { glCache.set(canvas, null); return null; }
+    const sh = (type, src) => { const o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o); return o; };
+    const prog = gl.createProgram();
+    gl.attachShader(prog, sh(gl.VERTEX_SHADER, 'attribute vec2 p; attribute vec2 t; varying vec2 v; void main(){ v = t; gl_Position = vec4(p, 0.0, 1.0); }'));
+    gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, 'precision mediump float; uniform sampler2D s; varying vec2 v; void main(){ gl_FragColor = texture2D(s, v); }'));
+    gl.linkProgram(prog); gl.useProgram(prog);
+    const ctx = {
+      gl, prog, aniso: gl.getExtension('EXT_texture_filter_anisotropic') || gl.getExtension('WEBKIT_EXT_texture_filter_anisotropic'),
+      pBuf: gl.createBuffer(), tBuf: gl.createBuffer(), pLoc: gl.getAttribLocation(prog, 'p'), tLoc: gl.getAttribLocation(prog, 't'),
+      textures: new WeakMap(),
+    };
+    gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    glCache.set(canvas, ctx);
+    return ctx;
+  }
+  function glTexture(g, img) {
+    if (g.textures.has(img)) return g.textures.get(img);
+    const gl = g.gl, tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.generateMipmap(gl.TEXTURE_2D);
+    if (g.aniso) gl.texParameterf(gl.TEXTURE_2D, g.aniso.TEXTURE_MAX_ANISOTROPY_EXT, Math.min(16, gl.getParameter(g.aniso.MAX_TEXTURE_MAX_ANISOTROPY_EXT)));
+    g.textures.set(img, tex);
+    return tex;
+  }
+  function glDrawMesh(g, img, grid) {
+    const gl = g.gl, pos = [], uv = [], vmax = (img.artH || img.height) / img.height;
+    const P = p => [p[0] / IMG_W * 2 - 1, 1 - p[1] / IMG_H * 2];
+    for (let j = 0; j < NV; j++) for (let i = 0; i < NU; i++) {
+      const u0 = i / NU, u1 = (i + 1) / NU, v0 = j / NV * vmax, v1 = (j + 1) / NV * vmax;
+      const d00 = P(grid[j][i]), d10 = P(grid[j][i + 1]), d01 = P(grid[j + 1][i]), d11 = P(grid[j + 1][i + 1]);
+      pos.push(...d00, ...d10, ...d11, ...d00, ...d11, ...d01);
+      uv.push(u0, v0, u1, v0, u1, v1, u0, v0, u1, v1, u0, v1);
+    }
+    gl.bindTexture(gl.TEXTURE_2D, glTexture(g, img));
+    gl.bindBuffer(gl.ARRAY_BUFFER, g.pBuf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(pos), gl.STREAM_DRAW);
+    gl.enableVertexAttribArray(g.pLoc); gl.vertexAttribPointer(g.pLoc, 2, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, g.tBuf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uv), gl.STREAM_DRAW);
+    gl.enableVertexAttribArray(g.tLoc); gl.vertexAttribPointer(g.tLoc, 2, gl.FLOAT, false, 0, 0);
+    gl.drawArrays(gl.TRIANGLES, 0, pos.length / 2);
   }
 
   /* ---------- Rendering: car frames ---------- */
@@ -268,13 +320,19 @@
     const placements = Object.entries(view.quads).map(([id, p]) => ({ spot: spotById[id], pl: normPlacement(p) }));
     const stickers = await Promise.all(placements.map(p => stickerFor(p.spot)));
     if (frame.dataset.seq !== String(seq)) return; // a newer render superseded this one
-    vin.width = cw; vin.height = ch; ui.width = cw; ui.height = ch;
-    const vc = vin.getContext('2d'), uc = ui.getContext('2d');
+    const g = getGL(vin);
+    const ss = g ? Math.max(dpr, 1.5) : 2; // supersample so edges stay clean
+    const vw = Math.round(frame.clientWidth * ss), vh = Math.round(vw * IMG_H / IMG_W);
+    vin.width = vw; vin.height = vh; ui.width = cw; ui.height = ch;
+    let vc = null;
+    if (g) { g.gl.viewport(0, 0, vw, vh); g.gl.clearColor(0, 0, 0, 0); g.gl.clear(g.gl.COLOR_BUFFER_BIT); }
+    else { vc = vin.getContext('2d'); vc.imageSmoothingQuality = 'high'; }
+    const uc = ui.getContext('2d');
     placements.forEach(({ spot, pl }, n) => {
       const st = stickers[n]; if (!st || !st.canvas) return;
       if (!state.showOpen && st.kind !== 'vinyl') return;
       const grid = meshOf(pl);
-      drawMesh(vc, st.canvas, grid, k);
+      if (g) glDrawMesh(g, st.canvas, grid); else drawMesh(vc, st.canvas, grid, vw / IMG_W);
       if (st.kind === 'ghost') {
         tracePath(uc, outlineOf(grid), k);
         uc.fillStyle = 'rgba(255,255,255,.28)'; uc.fill();
@@ -475,7 +533,7 @@
     if (type === 'image/svg+xml') return cb(dataUrl, { note: 'SVG used as is.' });
     const im = new Image();
     im.onload = () => {
-      const max = 900, k = Math.min(1, max / Math.max(im.width, im.height));
+      const max = 1600, k = Math.min(1, max / Math.max(im.width, im.height));
       const c = document.createElement('canvas'); c.width = Math.round(im.width * k); c.height = Math.round(im.height * k);
       const ctx = c.getContext('2d'); ctx.drawImage(im, 0, 0, c.width, c.height);
       let note = 'Used as uploaded.';
