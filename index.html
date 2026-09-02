@@ -56,9 +56,9 @@
     <div class="hero-art">
       <div class="car-frame" id="hero-frame" data-view="front34">
         <img class="car-img" src="cars/hero-34.jpg" alt="White Tesla Model 3, front three quarter view" width="1792" height="1008">
-        <div class="car-overlay" aria-hidden="true"></div>
+        <canvas class="car-vinyl" aria-hidden="true"></canvas><canvas class="car-ui" aria-hidden="true"></canvas>
       </div>
-      <p class="caption">Live preview. Logos on the car are the current top bidders. Empty panels are open spots.</p>
+      <p class="caption">Example brands on open spots. Real bidders replace them as bids land.</p>
     </div>
   </section>
 
@@ -79,26 +79,31 @@
         <div class="view-tabs" role="tablist" id="view-tabs"></div>
         <div class="car-frame studio-frame" id="studio-frame" data-view="front34" tabindex="0" aria-label="Car viewer. Use left and right arrow keys to turn the car.">
           <img class="car-img" src="cars/hero-34.jpg" alt="" width="1792" height="1008">
-          <div class="car-overlay"></div>
+          <canvas class="car-vinyl"></canvas><canvas class="car-ui"></canvas>
           <svg class="car-hits" viewBox="0 0 1792 1008" preserveAspectRatio="none"></svg>
           <button class="turn turn-prev" type="button" aria-label="Previous view">‹</button>
           <button class="turn turn-next" type="button" aria-label="Next view">›</button>
         </div>
         <div class="stage-foot">
           <span class="hint">Drag to turn · click a panel to select · arrow keys work too</span>
-          <label class="toggle"><input type="checkbox" id="toggle-outlines" checked> Show open spots</label>
+          <span class="toggles">
+            <label class="toggle"><input type="checkbox" id="toggle-demo" checked> Example brands</label>
+            <label class="toggle"><input type="checkbox" id="toggle-outlines" checked> Show open spots</label>
+          </span>
         </div>
       </div>
 
       <aside class="studio-panel">
         <div class="panel-block">
           <div class="panel-eyebrow">Try your logo</div>
-          <p class="small">Upload a PNG or SVG with a transparent background. It goes on every open spot so you can compare placements. Nothing is uploaded anywhere, it stays in your browser.</p>
+          <p class="small">Upload a PNG or SVG with a transparent background. It goes on every open spot so you can compare placements. Flat backgrounds are cut away automatically, the way a vinyl shop would die cut it. Nothing leaves your browser.</p>
           <div class="logo-row">
             <label class="btn btn-dark btn-sm file-btn">Choose logo<input type="file" id="logo-input" accept="image/png,image/svg+xml,image/jpeg,image/webp"></label>
             <input type="text" id="logo-text" placeholder="…or type a brand name" maxlength="24">
             <button class="btn btn-ghost btn-sm" type="button" id="logo-clear">Clear</button>
           </div>
+          <label class="toggle" style="margin-top:12px"><input type="checkbox" id="logo-cutout" checked> Cut out the background and match white paint</label>
+          <p class="small" id="logo-note"></p>
         </div>
 
         <div class="panel-block" id="spot-detail">

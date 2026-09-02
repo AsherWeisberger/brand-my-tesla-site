@@ -10,15 +10,20 @@ misplaced boxes. This version uses six clean studio photos of the car and maps l
 panels with code:
 
 - `cars/*.jpg` are the base photos (1792 x 1008). Passenger side is the driver side photo mirrored.
-- `quads.js` holds, for each view, the four image pixel corners `[TL, TR, BR, BL]` of every placement.
-- `app.js` computes a homography from a flat rectangle to each quad and applies it as a CSS
-  `matrix3d`, so any logo (PNG, SVG, or typed text) lands on the panel with correct perspective.
-  Logos use `mix-blend-mode: multiply` so the paint's shading shows through like real vinyl.
+- `quads.js` holds, for each view, every placement's four corners `c` plus its curvature: `bow` bends
+  each edge midpoint over the panel and `wrap` compresses the far ends like vinyl over a cylinder.
+- `app.js` builds a curved mesh from that (homography for the corners, then bow and wrap on top) and
+  draws the logo through it triangle by triangle on a canvas, so text baselines arc over the hood
+  crown, bumper corners, and trunk lid instead of sitting like a flat sticker. The canvas uses
+  `mix-blend-mode: multiply` so the paint's shading and reflections show through like real vinyl.
+- Uploaded logos are cleaned first: a flat background is cut away, and a dark background is inverted so
+  the mark reads as dark vinyl on white paint. Turn that off with the checkbox under the upload button.
 
 ### Adjusting a placement
 
-Open the site with `?calib=1` and drag the corner handles on any view. The JSON for the current view
-appears in a box at the bottom of the page. Paste it into `quads.js`.
+Open the site with `?calib=1`. White handles are corners, blue handles are edge midpoints (drag them to
+bend an edge). The JSON for the current view appears in a box at the bottom of the page. Paste it into
+`quads.js`. `wrap` angles are edited by hand.
 
 Or run `python3 calib.py out-dir` (needs Pillow and numpy) to render full size composites with a grid
 so you can read coordinates off them.
@@ -28,6 +33,8 @@ so you can read coordinates off them.
 - `?view=rear34` opens on a given angle: `front34`, `front`, `side-l`, `side-r`, `rear34`, `rear`
 - `?spot=trunk` preselects a spot: `hood`, `trunk`, `door-fl`, `door-fr`, `door-rl`, `door-rr`, `bumper-f`, `bumper-r`
 - `?text=ACME` previews a brand name on every open spot
+- `?logo=cars/some-file.png` previews a same origin logo file from a link
+- `?nodemo=1` hides the example brand marks and shows plain outlines on open spots
 - `?shot=1` hides everything except the car viewer (useful for screenshots and embeds)
 
 ## Bids

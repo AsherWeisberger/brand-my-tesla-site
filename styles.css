@@ -100,33 +100,10 @@ p { margin: 0; }
   pointer-events: none;
 }
 .car-frame.flip .car-img { transform: scaleX(-1); }
-/* Overlay lives in a 1792x1008 coordinate space, scaled down to the frame with a CSS transform.
-   Decals are perspective-mapped into this space via matrix3d, so image-pixel coordinates work directly. */
-.car-overlay {
-  position: absolute; left: 0; top: 0; width: 1792px; height: 1008px;
-  transform-origin: 0 0; pointer-events: none;
-}
-.decal {
-  position: absolute; left: 0; top: 0; transform-origin: 0 0;
-  display: grid; place-items: center; overflow: hidden;
-  backface-visibility: hidden; will-change: transform;
-}
-.decal img { width: 100%; height: 100%; object-fit: contain; display: block; }
-.decal.vinyl { mix-blend-mode: multiply; }
-.decal .ph {
-  width: 100%; height: 100%; display: grid; place-items: center; text-align: center;
-  font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink);
-  border: 6px dashed rgba(20,19,17,.55); border-radius: 22px; background: rgba(255,255,255,.18);
-  line-height: 1.1;
-}
-.decal .ph small { display: block; font-weight: 500; letter-spacing: .12em; opacity: .7; margin-top: .3em; }
-.decal .brandtext {
-  width: 100%; height: 100%; display: grid; place-items: center; text-align: center;
-  font-weight: 700; letter-spacing: -0.02em; color: #141311; line-height: 1; padding: 0 4%;
-  white-space: nowrap;
-}
-.decal.selected { outline: none; }
-.car-frame.hide-open .decal.open { opacity: 0; }
+/* Decals are drawn on a canvas that covers the photo. The vinyl layer multiplies with the paint
+   so the car's shading and reflections show through the logo like real vinyl. */
+.car-vinyl, .car-ui { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.car-vinyl { mix-blend-mode: multiply; }
 
 .car-hits { position: absolute; inset: 0; width: 100%; height: 100%; }
 .car-hits polygon {
@@ -165,6 +142,7 @@ p { margin: 0; }
 .studio-frame.dragging { cursor: grabbing; }
 .stage-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; gap: 12px; flex-wrap: wrap; }
 .hint { font-size: 13px; color: var(--ink-3); }
+.toggles { display: flex; gap: 16px; flex-wrap: wrap; }
 .toggle { font-size: 13px; color: var(--ink-2); display: flex; align-items: center; gap: 8px; cursor: pointer; }
 
 .studio-panel { display: flex; flex-direction: column; gap: 14px; }
@@ -286,6 +264,7 @@ p { margin: 0; }
 /* Calibration mode (?calib=1) */
 .calib .car-hits polygon { stroke: rgba(214,76,30,.9); fill: rgba(214,76,30,.08); }
 .calib-handle { fill: #fff; stroke: var(--accent); stroke-width: 2; cursor: move; vector-effect: non-scaling-stroke; }
+.calib-handle.mid { fill: var(--accent-2); stroke: #fff; }
 #calib-out { position: fixed; bottom: 12px; left: 12px; right: 12px; z-index: 90; height: 130px; font: 12px ui-monospace, monospace; background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
 
 /* ?shot=1: bare car viewer, used for screenshots and embeds */

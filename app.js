@@ -10,7 +10,7 @@
 
   /* ---------- Spots ---------- */
   const SPOTS = [
-    { id: 'hood',     name: 'Hood',                where: 'Center of the hood, the marquee',      size: 'Large',  cm: '60 × 20 cm', in: '23.6 × 7.9 in',  floor: 1000, ratio: 3,       view: 'front34' },
+    { id: 'hood',     name: 'Hood',                where: 'Center of the hood, the marquee',      size: 'Large',  cm: '60 × 25 cm', in: '23.6 × 9.8 in',  floor: 1000, ratio: 2.4,       view: 'front34' },
     { id: 'trunk',    name: 'Trunk lid',           where: 'Center of the trunk, under the badge', size: 'Large',  cm: '50 × 15 cm', in: '19.7 × 5.9 in',  floor: 1000, ratio: 50 / 15, view: 'rear' },
     { id: 'door-fl',  name: 'Driver door',         where: 'Front door, driver side',              size: 'Large',  cm: '60 × 30 cm', in: '23.6 × 11.8 in', floor: 750,  ratio: 2,       view: 'side-l' },
     { id: 'door-fr',  name: 'Passenger door',      where: 'Front door, passenger side',           size: 'Large',  cm: '60 × 30 cm', in: '23.6 × 11.8 in', floor: 750,  ratio: 2,       view: 'front34' },
@@ -36,10 +36,12 @@
 
   function mirrorQuads(quads, rename) {
     const out = {};
-    for (const [id, q] of Object.entries(quads)) {
-      const m = q.map(([x, y]) => [IMG_W - x, y]);
-      // viewer-facing order after a horizontal flip: TL'=mirror(TR), TR'=mirror(TL), BR'=mirror(BL), BL'=mirror(BR)
-      out[rename[id] || id] = [m[1], m[0], m[3], m[2]];
+    for (const [id, p] of Object.entries(quads)) {
+      const pl = normPlacement(p);
+      const m = pl.c.map(([x, y]) => [IMG_W - x, y]);
+      const mb = pl.bow.map(([dx, dy]) => [-dx, dy]);
+      // viewer-facing order after a horizontal flip: TL'=mirror(TR), TR'=mirror(TL), BR'=mirror(BL), BL'=mirror(BR); left/right bows swap
+      out[rename[id] || id] = { c: [m[1], m[0], m[3], m[2]], bow: [mb[0], mb[3], mb[2], mb[1]], wrap: pl.wrap };
     }
     return out;
   }
@@ -85,108 +87,229 @@
     save(bids) { try { localStorage.setItem(this.key, JSON.stringify(bids)); } catch {} },
   };
   let bids = store.load(); // { spotId: { amount, company, name, email, logo, at } }
-  const state = { view: 'front34', selected: null, previewLogo: null, previewText: '', showOpen: true };
+  const state = { view: 'front34', selected: null, previewLogo: null, rawLogo: null, rawType: '', previewText: '', showOpen: true, demo: true, cutout: true };
 
   const money = n => '$' + Math.round(n).toLocaleString('en-US');
   const topBid = id => bids[id] || null;
   const currentPrice = id => (bids[id] ? bids[id].amount : spotById[id].floor);
   const minBid = id => (bids[id] ? bids[id].amount + MIN_RAISE : spotById[id].floor);
 
-  /* ---------- Rendering: car frames ---------- */
-  function fitOverlay(frame) {
-    const ov = frame.querySelector('.car-overlay');
-    const k = frame.clientWidth / IMG_W;
-    ov.style.transform = `scale(${k})`;
+  /* ---------- Placement geometry ----------
+     A placement is 4 corners [TL,TR,BR,BL] plus optional curvature:
+       bow:  displacement of each edge midpoint [top,right,bottom,left] in image px, bends the edges
+       wrap: [degU, degV] cylinder wrap angle across / along the decal, compresses the far ends like vinyl over a curve
+     A homography puts the flat rectangle on the corners, the bow and wrap bend it over the panel. */
+  function normPlacement(p) {
+    if (Array.isArray(p)) return { c: p, bow: [[0, 0], [0, 0], [0, 0], [0, 0]], wrap: [0, 0] };
+    return { c: p.c, bow: p.bow || [[0, 0], [0, 0], [0, 0], [0, 0]], wrap: p.wrap || [0, 0] };
+  }
+  function wrapMap(t, deg) {
+    if (!deg) return t;
+    const th = deg * Math.PI / 180;
+    return 0.5 + Math.sin(th * (2 * t - 1)) / (2 * Math.sin(th));
+  }
+  function surface(pl) {
+    const [TL, TR, BR, BL] = pl.c;
+    const H = multmm(basisToPoints(TL, TR, BL, BR), adj(basisToPoints([0, 0], [1, 0], [0, 1], [1, 1]))); // unit square → corners
+    const flat = (u, v) => { const p = multmv(H, [u, v, 1]); return [p[0] / p[2], p[1] / p[2]]; };
+    const [bt, br, bb, bl] = pl.bow;
+    return (u, v) => {
+      const p = flat(wrapMap(u, pl.wrap[0]), wrapMap(v, pl.wrap[1]));
+      const eu = 4 * u * (1 - u), ev = 4 * v * (1 - v);
+      return [
+        p[0] + eu * ((1 - v) * bt[0] + v * bb[0]) + ev * ((1 - u) * bl[0] + u * br[0]),
+        p[1] + eu * ((1 - v) * bt[1] + v * bb[1]) + ev * ((1 - u) * bl[1] + u * br[1]),
+      ];
+    };
+  }
+  const NU = 18, NV = 7;
+  function meshOf(pl) {
+    const f = surface(pl), g = [];
+    for (let j = 0; j <= NV; j++) { const row = []; for (let i = 0; i <= NU; i++) row.push(f(i / NU, j / NV)); g.push(row); }
+    return g;
+  }
+  function outlineOf(g) {
+    const pts = [];
+    for (let i = 0; i <= NU; i++) pts.push(g[0][i]);
+    for (let j = 1; j <= NV; j++) pts.push(g[j][NU]);
+    for (let i = NU - 1; i >= 0; i--) pts.push(g[NV][i]);
+    for (let j = NV - 1; j >= 1; j--) pts.push(g[j][0]);
+    return pts;
   }
 
-  function decalContent(spot) {
+  /* ---------- Stickers: the flat artwork before it is bent onto the car ---------- */
+  const SW = 1200;
+  const stickerCache = new Map();
+  function stickerCanvas(ratio) {
+    const c = document.createElement('canvas'); c.width = SW; c.height = Math.round(SW / ratio); return c;
+  }
+  function loadImage(src) {
+    return new Promise(res => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = src; });
+  }
+  function fitFontSize(ctx, text, fontOf, maxW, maxH) {
+    let size = maxH;
+    ctx.font = fontOf(size);
+    const w = ctx.measureText(text).width;
+    if (w > maxW) size = size * maxW / w;
+    return size;
+  }
+  function spaced(ctx, text, x, y, spacing) {
+    let w = 0; for (const ch of text) w += ctx.measureText(ch).width + spacing; w -= spacing;
+    let cx = x - w / 2;
+    for (const ch of text) { ctx.fillText(ch, cx + ctx.measureText(ch).width / 2, y); cx += ctx.measureText(ch).width + spacing; }
+  }
+  const SANS = '"Instrument Sans", "Helvetica Neue", Arial, sans-serif', SERIF = '"Instrument Serif", Georgia, serif';
+  function textSticker(text, ratio, color, opts = {}) {
+    const c = stickerCanvas(ratio), ctx = c.getContext('2d'), W = c.width, H = c.height;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = color;
+    const fontOf = s => `${opts.style || ''} ${opts.weight || 700} ${s}px ${opts.family || SANS}`;
+    let size = fitFontSize(ctx, text, fontOf, W * 0.9, H * (opts.cap || 0.66));
+    if (opts.spacing) { ctx.font = fontOf(size); const w = ctx.measureText(text).width + size * opts.spacing * (text.length - 1); if (w > W * 0.9) size *= (W * 0.9) / w; }
+    ctx.font = fontOf(size);
+    if (opts.spacing) spaced(ctx, text, W / 2, H / 2, size * opts.spacing); else ctx.fillText(text, W / 2, H / 2);
+    return c;
+  }
+  const MARKS = {
+    hood:      r => textSticker('ACME ROBOTICS', r, '#141311'),
+    trunk:     r => { const c = stickerCanvas(r), x = c.getContext('2d'), H = c.height; x.fillStyle = '#1f2a5a';
+                 x.textAlign = 'left'; x.textBaseline = 'middle';
+                 const size = fitFontSize(x, 'northwind', s => `700 ${s}px ${SANS}`, c.width * 0.72, H * 0.7); x.font = `700 ${size}px ${SANS}`;
+                 const tw = x.measureText('northwind').width, mark = size * 0.7, total = tw + mark + size * 0.25, x0 = (c.width - total) / 2;
+                 x.beginPath(); x.moveTo(x0, H / 2 + mark / 2); x.lineTo(x0 + mark / 2, H / 2 - mark / 2); x.lineTo(x0 + mark, H / 2 + mark / 2); x.closePath(); x.fill();
+                 x.fillText('northwind', x0 + mark + size * 0.25, H / 2 + size * 0.04); return c; },
+    'door-fl': r => textSticker('KESTREL', r, '#c8341b', { weight: 600, spacing: 0.22, cap: 0.5 }),
+    'door-fr': r => textSticker('Lumen', r, '#145a3a', { family: SERIF, style: 'italic', weight: 400, cap: 0.95 }),
+    'door-rl': r => { const c = stickerCanvas(r), x = c.getContext('2d'), H = c.height; x.fillStyle = x.strokeStyle = '#1f5fd6';
+                 x.textAlign = 'left'; x.textBaseline = 'middle';
+                 const size = fitFontSize(x, 'orbit', s => `700 ${s}px ${SANS}`, c.width * 0.6, H * 0.72); x.font = `700 ${size}px ${SANS}`;
+                 const tw = x.measureText('orbit').width, R = size * 0.34, total = tw + R * 2.6 + size * 0.2, x0 = (c.width - total) / 2;
+                 x.lineWidth = R * 0.4; x.beginPath(); x.arc(x0 + R, H / 2, R, 0, Math.PI * 2); x.stroke();
+                 x.beginPath(); x.arc(x0 + R * 2.05, H / 2, R * 0.28, 0, Math.PI * 2); x.fill();
+                 x.fillText('orbit', x0 + R * 2.6 + size * 0.2, H / 2 + size * 0.04); return c; },
+    'door-rr': r => { const c = stickerCanvas(r), x = c.getContext('2d'), H = c.height; x.fillStyle = '#141311';
+                 x.textAlign = 'left'; x.textBaseline = 'middle';
+                 const size = fitFontSize(x, 'hexa', s => `700 ${s}px ${SANS}`, c.width * 0.6, H * 0.72); x.font = `700 ${size}px ${SANS}`;
+                 const tw = x.measureText('hexa').width, R = size * 0.42, total = tw + R * 2 + size * 0.22, x0 = (c.width - total) / 2, cx = x0 + R, cy = H / 2;
+                 x.beginPath(); for (let k = 0; k < 6; k++) { const an = Math.PI / 6 + k * Math.PI / 3; x[k ? 'lineTo' : 'moveTo'](cx + R * Math.cos(an), cy + R * Math.sin(an)); } x.closePath(); x.fill();
+                 x.fillText('hexa', x0 + R * 2 + size * 0.22, H / 2 + size * 0.04); return c; },
+    'bumper-f': r => textSticker('PALM', r, '#7a4b2a', { spacing: 0.4, cap: 0.62 }),
+    'bumper-r': r => textSticker('Verde', r, '#2f7d3a', { family: SERIF, weight: 400, cap: 0.95 }),
+  };
+  async function imageSticker(src, ratio) {
+    const im = await loadImage(src); if (!im) return null;
+    const c = stickerCanvas(ratio), ctx = c.getContext('2d'), W = c.width, H = c.height;
+    const k = Math.min((W * 0.94) / im.width, (H * 0.9) / im.height);
+    const w = im.width * k, h = im.height * k;
+    ctx.drawImage(im, (W - w) / 2, (H - h) / 2, w, h);
+    return c;
+  }
+  // Returns { canvas, kind } for a spot given the current state; cached by content.
+  async function stickerFor(spot) {
     const held = topBid(spot.id);
-    const el = document.createElement('div');
-    if (held && held.logo) {
-      el.className = 'decal vinyl';
-      const img = document.createElement('img'); img.src = held.logo; img.alt = held.company;
-      el.appendChild(img);
-    } else if (held) {
-      el.className = 'decal vinyl';
-      el.appendChild(brandText(held.company, spot));
-    } else if (state.previewLogo) {
-      el.className = 'decal vinyl open';
-      const img = document.createElement('img'); img.src = state.previewLogo; img.alt = 'Your logo';
-      el.appendChild(img);
-    } else if (state.previewText) {
-      el.className = 'decal vinyl open';
-      el.appendChild(brandText(state.previewText, spot));
-    } else {
-      el.className = 'decal open';
-      const ph = document.createElement('div'); ph.className = 'ph';
-      ph.innerHTML = `Your logo<small>${spot.name} · ${money(currentPrice(spot.id))}</small>`;
-      el.appendChild(ph);
+    let key, make, kind = 'vinyl';
+    if (held && held.logo) { key = 'held:' + held.logo.slice(0, 64) + held.at; make = () => imageSticker(held.logo, spot.ratio); }
+    else if (held) { key = 'heldtext:' + held.company; make = () => textSticker(held.company, spot.ratio, '#141311'); }
+    else if (state.previewLogo) { key = 'prev:' + state.previewLogo.slice(-80) + state.previewLogo.length; make = () => imageSticker(state.previewLogo, spot.ratio); }
+    else if (state.previewText) { key = 'text:' + state.previewText; make = () => textSticker(state.previewText, spot.ratio, '#141311'); }
+    else if (state.demo) { key = 'demo'; make = () => MARKS[spot.id](spot.ratio); kind = 'open'; }
+    else { key = 'ghost'; make = () => textSticker(spot.name.toUpperCase(), spot.ratio, 'rgba(20,19,17,.5)', { weight: 600, spacing: 0.18, cap: 0.42 }); kind = 'ghost'; }
+    key += '|' + spot.id + '|' + spot.ratio;
+    if (!stickerCache.has(key)) stickerCache.set(key, Promise.resolve(make()));
+    return { canvas: await stickerCache.get(key), kind };
+  }
+
+  /* ---------- Bending the sticker onto the panel ---------- */
+  function drawTri(ctx, img, s0, s1, s2, d0, d1, d2) {
+    const [x0, y0] = s0, [x1, y1] = s1, [x2, y2] = s2;
+    const [u0, v0] = d0, [u1, v1] = d1, [u2, v2] = d2;
+    const det = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0);
+    if (!det) return;
+    const a = ((u1 - u0) * (y2 - y0) - (u2 - u0) * (y1 - y0)) / det;
+    const b = ((v1 - v0) * (y2 - y0) - (v2 - v0) * (y1 - y0)) / det;
+    const c = ((u2 - u0) * (x1 - x0) - (u1 - u0) * (x2 - x0)) / det;
+    const d = ((v2 - v0) * (x1 - x0) - (v1 - v0) * (x2 - x0)) / det;
+    const e = u0 - a * x0 - c * y0, f = v0 - b * x0 - d * y0;
+    // expand the clip a hair so seams between triangles don't show
+    const cx = (u0 + u1 + u2) / 3, cy = (v0 + v1 + v2) / 3, ex = 0.7;
+    const px = p => { const dx = p[0] - cx, dy = p[1] - cy, l = Math.hypot(dx, dy) || 1; return [p[0] + dx / l * ex, p[1] + dy / l * ex]; };
+    const q0 = px(d0), q1 = px(d1), q2 = px(d2);
+    ctx.save();
+    ctx.beginPath(); ctx.moveTo(q0[0], q0[1]); ctx.lineTo(q1[0], q1[1]); ctx.lineTo(q2[0], q2[1]); ctx.closePath(); ctx.clip();
+    ctx.transform(a, b, c, d, e, f);
+    ctx.drawImage(img, 0, 0);
+    ctx.restore();
+  }
+  function drawMesh(ctx, img, grid, k) {
+    const sw = img.width, sh = img.height;
+    for (let j = 0; j < NV; j++) for (let i = 0; i < NU; i++) {
+      const sx0 = i / NU * sw, sx1 = (i + 1) / NU * sw, sy0 = j / NV * sh, sy1 = (j + 1) / NV * sh;
+      const d = p => [p[0] * k, p[1] * k];
+      const d00 = d(grid[j][i]), d10 = d(grid[j][i + 1]), d01 = d(grid[j + 1][i]), d11 = d(grid[j + 1][i + 1]);
+      drawTri(ctx, img, [sx0, sy0], [sx1, sy0], [sx1, sy1], d00, d10, d11);
+      drawTri(ctx, img, [sx0, sy0], [sx1, sy1], [sx0, sy1], d00, d11, d01);
     }
-    return el;
+  }
+  function tracePath(ctx, pts, k) {
+    ctx.beginPath(); pts.forEach((p, i) => ctx[i ? 'lineTo' : 'moveTo'](p[0] * k, p[1] * k)); ctx.closePath();
   }
 
-  function brandText(text, spot) {
-    const d = document.createElement('div'); d.className = 'brandtext'; d.textContent = text;
-    return d;
-  }
-
-  function renderFrame(frame) {
+  /* ---------- Rendering: car frames ---------- */
+  let renderSeq = 0;
+  async function renderFrame(frame) {
     const view = viewById[frame.dataset.view];
     const img = frame.querySelector('.car-img');
     if (img.getAttribute('src') !== view.src) img.src = view.src;
     frame.classList.toggle('flip', !!view.flip);
-    frame.classList.toggle('hide-open', !state.showOpen);
-    const ov = frame.querySelector('.car-overlay');
-    ov.innerHTML = '';
-    const W = 600;
-    for (const [id, q] of Object.entries(view.quads)) {
-      const spot = spotById[id];
-      const H = Math.round(W / spot.ratio);
-      const d = decalContent(spot);
-      d.style.width = W + 'px'; d.style.height = H + 'px';
-      d.style.transform = quadTransform(W, H, q);
-      d.style.fontSize = Math.round(H * 0.42) + 'px';
-      const ph = d.querySelector('.ph'); if (ph) ph.style.fontSize = Math.round(H * 0.26) + 'px';
-      const bt = d.querySelector('.brandtext'); if (bt) fitText(bt, W, H);
-      d.dataset.spot = id;
-      ov.appendChild(d);
-    }
+    const seq = ++renderSeq; frame.dataset.seq = seq;
+    const vin = frame.querySelector('.car-vinyl'), ui = frame.querySelector('.car-ui');
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const cw = Math.max(1, Math.round(frame.clientWidth * dpr)), ch = Math.round(cw * IMG_H / IMG_W);
+    const k = cw / IMG_W;
+    const placements = Object.entries(view.quads).map(([id, p]) => ({ spot: spotById[id], pl: normPlacement(p) }));
+    const stickers = await Promise.all(placements.map(p => stickerFor(p.spot)));
+    if (frame.dataset.seq !== String(seq)) return; // a newer render superseded this one
+    vin.width = cw; vin.height = ch; ui.width = cw; ui.height = ch;
+    const vc = vin.getContext('2d'), uc = ui.getContext('2d');
+    placements.forEach(({ spot, pl }, n) => {
+      const st = stickers[n]; if (!st || !st.canvas) return;
+      if (!state.showOpen && st.kind !== 'vinyl') return;
+      const grid = meshOf(pl);
+      drawMesh(vc, st.canvas, grid, k);
+      if (st.kind === 'ghost') {
+        tracePath(uc, outlineOf(grid), k);
+        uc.fillStyle = 'rgba(255,255,255,.28)'; uc.fill();
+        uc.lineWidth = Math.max(1, 1.5 * k * 2); uc.strokeStyle = 'rgba(20,19,17,.45)'; uc.stroke();
+      }
+    });
     const hits = frame.querySelector('.car-hits');
     if (hits) renderHits(hits, view);
-    fitOverlay(frame);
-  }
-
-  function fitText(el, w, h) {
-    const len = Math.max(el.textContent.length, 3);
-    el.style.fontSize = Math.min(h * 0.72, (w * 0.9) / (len * 0.68)) + 'px';
   }
 
   function renderHits(svg, view) {
     svg.innerHTML = '';
     const ns = 'http://www.w3.org/2000/svg';
-    for (const [id, q] of Object.entries(view.quads)) {
+    let selTop = null;
+    for (const [id, p] of Object.entries(view.quads)) {
+      const grid = meshOf(normPlacement(p)), pts = outlineOf(grid);
       const poly = document.createElementNS(ns, 'polygon');
-      poly.setAttribute('points', q.map(p => p.join(',')).join(' '));
+      poly.setAttribute('points', pts.map(q => q.map(n => n.toFixed(1)).join(',')).join(' '));
       poly.dataset.spot = id;
-      if (state.selected === id) poly.classList.add('selected');
+      if (state.selected === id) { poly.classList.add('selected'); selTop = grid; }
       poly.addEventListener('click', () => selectSpot(id, false));
       const t = document.createElementNS(ns, 'title'); t.textContent = `${spotById[id].name} · ${money(currentPrice(id))}`;
       poly.appendChild(t);
       svg.appendChild(poly);
     }
-    // Price tag for the selected spot
-    if (state.selected && view.quads[state.selected]) {
-      const q = view.quads[state.selected];
-      const cx = (q[0][0] + q[1][0] + q[2][0] + q[3][0]) / 4;
-      const top = Math.min(q[0][1], q[1][1]);
+    if (selTop) {
+      const top = selTop[0], cx = top.reduce((a, q) => a + q[0], 0) / top.length, ty = Math.min(...top.map(q => q[1]));
       const label = `${spotById[state.selected].name}  ·  ${money(currentPrice(state.selected))}`;
       const w = label.length * 12 + 28, h = 38;
       const g = document.createElementNS(ns, 'g');
       const r = document.createElementNS(ns, 'rect');
       r.setAttribute('class', 'tag-bg'); r.setAttribute('rx', 19);
-      r.setAttribute('x', cx - w / 2); r.setAttribute('y', top - h - 14); r.setAttribute('width', w); r.setAttribute('height', h);
+      r.setAttribute('x', cx - w / 2); r.setAttribute('y', ty - h - 14); r.setAttribute('width', w); r.setAttribute('height', h);
       const tx = document.createElementNS(ns, 'text');
-      tx.setAttribute('class', 'tag'); tx.setAttribute('x', cx); tx.setAttribute('y', top - h - 14 + 26); tx.setAttribute('text-anchor', 'middle');
+      tx.setAttribute('class', 'tag'); tx.setAttribute('x', cx); tx.setAttribute('y', ty - h - 14 + 26); tx.setAttribute('text-anchor', 'middle');
       tx.textContent = label;
       g.appendChild(r); g.appendChild(tx); svg.appendChild(g);
     }
@@ -202,7 +325,8 @@
     renderFrame(studioFrame);
     renderTabs(); renderSpotList(); renderSpotDetail(); renderTable(); renderStats();
   }
-  window.addEventListener('resize', () => { fitOverlay(heroFrame); fitOverlay(studioFrame); });
+  let resizeT;
+  window.addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => { renderFrame(heroFrame); renderFrame(studioFrame); }, 120); });
 
   /* ---------- View tabs + turning ---------- */
   const tabs = document.getElementById('view-tabs');
@@ -341,28 +465,88 @@
   function readLogo(file, cb) {
     if (!file) return;
     const fr = new FileReader();
-    fr.onload = () => {
-      if (file.type === 'image/svg+xml') return cb(fr.result);
-      // Downscale rasters so localStorage stays small and rendering stays quick
-      const im = new Image();
-      im.onload = () => {
-        const max = 900, k = Math.min(1, max / Math.max(im.width, im.height));
-        const c = document.createElement('canvas'); c.width = Math.round(im.width * k); c.height = Math.round(im.height * k);
-        c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
-        cb(c.toDataURL('image/png'));
-      };
-      im.src = fr.result;
-    };
+    fr.onload = () => cb(fr.result, file.type);
     fr.readAsDataURL(file);
   }
+  // Turns an uploaded logo into something a vinyl shop would cut for white paint:
+  // downscale, detect a flat background from the border pixels, make it transparent,
+  // and if the background was dark, invert so the mark reads dark on white.
+  function processLogo(dataUrl, type, cutout, cb) {
+    if (type === 'image/svg+xml') return cb(dataUrl, { note: 'SVG used as is.' });
+    const im = new Image();
+    im.onload = () => {
+      const max = 900, k = Math.min(1, max / Math.max(im.width, im.height));
+      const c = document.createElement('canvas'); c.width = Math.round(im.width * k); c.height = Math.round(im.height * k);
+      const ctx = c.getContext('2d'); ctx.drawImage(im, 0, 0, c.width, c.height);
+      let note = 'Used as uploaded.';
+      if (cutout) {
+        const W = c.width, H = c.height, id = ctx.getImageData(0, 0, W, H), d = id.data;
+        const border = [];
+        const step = Math.max(1, Math.floor((W + H) / 300));
+        for (let x = 0; x < W; x += step) { border.push(x * 4, ((H - 1) * W + x) * 4); }
+        for (let y = 0; y < H; y += step) { border.push((y * W) * 4, (y * W + W - 1) * 4); }
+        const opaque = border.filter(i => d[i + 3] > 200);
+        if (opaque.length < border.length * 0.6) {
+          note = 'Logo already has a transparent background.';
+        } else {
+          const avg = [0, 0, 0]; opaque.forEach(i => { avg[0] += d[i]; avg[1] += d[i + 1]; avg[2] += d[i + 2]; });
+          avg.forEach((v, j) => avg[j] = v / opaque.length);
+          const dist = i => Math.hypot(d[i] - avg[0], d[i + 1] - avg[1], d[i + 2] - avg[2]);
+          const uniform = opaque.filter(i => dist(i) < 40).length / opaque.length;
+          if (uniform < 0.8) {
+            note = 'No flat background found, used as uploaded.';
+          } else {
+            const luma = 0.299 * avg[0] + 0.587 * avg[1] + 0.114 * avg[2];
+            let bg = avg;
+            if (luma < 110) {
+              for (let i = 0; i < d.length; i += 4) { d[i] = 255 - d[i]; d[i + 1] = 255 - d[i + 1]; d[i + 2] = 255 - d[i + 2]; }
+              bg = avg.map(v => 255 - v);
+              note = 'Background removed. Colors inverted so the mark reads as dark vinyl on white paint.';
+            } else {
+              note = 'Background removed.';
+            }
+            const t0 = 28, t1 = 96;
+            for (let i = 0; i < d.length; i += 4) {
+              const dd = Math.hypot(d[i] - bg[0], d[i + 1] - bg[1], d[i + 2] - bg[2]);
+              const a = Math.max(0, Math.min(1, (dd - t0) / (t1 - t0)));
+              d[i + 3] = Math.min(d[i + 3], Math.round(a * 255));
+            }
+            ctx.putImageData(id, 0, 0);
+            // Trim transparent margins so the mark fills the vinyl area
+            let x0 = W, y0 = H, x1 = 0, y1 = 0;
+            for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (d[(y * W + x) * 4 + 3] > 20) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+            if (x1 > x0 && y1 > y0) {
+              const pad = 4, t = document.createElement('canvas');
+              t.width = x1 - x0 + 1 + pad * 2; t.height = y1 - y0 + 1 + pad * 2;
+              t.getContext('2d').drawImage(c, x0, y0, x1 - x0 + 1, y1 - y0 + 1, pad, pad, x1 - x0 + 1, y1 - y0 + 1);
+              return cb(t.toDataURL('image/png'), { note });
+            }
+          }
+        }
+      }
+      cb(c.toDataURL('image/png'), { note });
+    };
+    im.src = dataUrl;
+  }
+  function applyPreviewLogo() {
+    if (!state.rawLogo) return;
+    processLogo(state.rawLogo, state.rawType, state.cutout, (url, info) => {
+      state.previewLogo = url; state.previewText = ''; document.getElementById('logo-text').value = '';
+      document.getElementById('logo-note').textContent = info.note;
+      renderFrame(studioFrame); renderFrame(heroFrame);
+    });
+  }
   document.getElementById('logo-input').addEventListener('change', e => {
-    readLogo(e.target.files[0], url => { state.previewLogo = url; state.previewText = ''; document.getElementById('logo-text').value = ''; renderFrame(studioFrame); renderFrame(heroFrame); });
+    readLogo(e.target.files[0], (url, type) => { state.rawLogo = url; state.rawType = type; applyPreviewLogo(); });
   });
+  document.getElementById('logo-cutout').addEventListener('change', e => { state.cutout = e.target.checked; applyPreviewLogo(); });
+  document.getElementById('toggle-demo').addEventListener('change', e => { state.demo = e.target.checked; renderFrame(studioFrame); renderFrame(heroFrame); });
   document.getElementById('logo-text').addEventListener('input', e => {
     state.previewText = e.target.value.trim(); state.previewLogo = null; renderFrame(studioFrame); renderFrame(heroFrame);
   });
   document.getElementById('logo-clear').addEventListener('click', () => {
-    state.previewLogo = null; state.previewText = ''; document.getElementById('logo-text').value = ''; document.getElementById('logo-input').value = '';
+    state.previewLogo = null; state.rawLogo = null; state.previewText = ''; document.getElementById('logo-text').value = ''; document.getElementById('logo-input').value = '';
+    document.getElementById('logo-note').textContent = '';
     renderFrame(studioFrame); renderFrame(heroFrame);
   });
 
@@ -397,7 +581,7 @@
       renderAll();
     };
     const file = document.getElementById('bid-logo').files[0];
-    if (file) readLogo(file, commit); else commit(null);
+    if (file) readLogo(file, (url, type) => processLogo(url, type, true, commit)); else commit(null);
   });
 
   /* ---------- Waitlist ---------- */
@@ -417,36 +601,44 @@
   let calibOut;
   function renderCalibHandles(svg, view) {
     const ns = 'http://www.w3.org/2000/svg';
-    for (const [id, q] of Object.entries(view.quads)) {
-      q.forEach((p, i) => {
+    for (const id of Object.keys(view.quads)) {
+      if (Array.isArray(view.quads[id])) view.quads[id] = normPlacement(view.quads[id]);
+      const pl = view.quads[id], f = surface({ ...pl, bow: [[0, 0], [0, 0], [0, 0], [0, 0]] });
+      const mids = [f(0.5, 0), f(1, 0.5), f(0.5, 1), f(0, 0.5)];
+      const handle = (p, cls, onMove) => {
         const c = document.createElementNS(ns, 'circle');
-        c.setAttribute('class', 'calib-handle'); c.setAttribute('r', 9);
+        c.setAttribute('class', 'calib-handle ' + cls); c.setAttribute('r', cls === 'mid' ? 7 : 9);
         c.setAttribute('cx', p[0]); c.setAttribute('cy', p[1]);
         c.addEventListener('pointerdown', ev => {
           ev.stopPropagation(); c.setPointerCapture(ev.pointerId);
           const move = mv => {
             const r = svg.getBoundingClientRect();
-            p[0] = Math.round((mv.clientX - r.left) / r.width * IMG_W);
-            p[1] = Math.round((mv.clientY - r.top) / r.height * IMG_H);
+            onMove(Math.round((mv.clientX - r.left) / r.width * IMG_W), Math.round((mv.clientY - r.top) / r.height * IMG_H));
             renderFrame(studioFrame); dumpCalib();
           };
           c.addEventListener('pointermove', move);
           c.addEventListener('pointerup', () => c.removeEventListener('pointermove', move), { once: true });
         });
         svg.appendChild(c);
-      });
+      };
+      pl.c.forEach(p => handle(p, 'corner', (x, y) => { p[0] = x; p[1] = y; }));
+      mids.forEach((m, i) => handle([m[0] + pl.bow[i][0], m[1] + pl.bow[i][1]], 'mid', (x, y) => { pl.bow[i] = [x - m[0], y - m[1]]; }));
     }
   }
   function dumpCalib() {
     const v = viewById[state.view];
-    calibOut.value = `'${v.id}': ` + JSON.stringify(v.quads).replace(/\],\[\[/g, '],\n  [[');
+    const lines = Object.entries(v.quads).map(([id, p]) => {
+      const pl = normPlacement(p);
+      return `    "${id}": {"c": ${JSON.stringify(pl.c)}, "bow": ${JSON.stringify(pl.bow)}, "wrap": ${JSON.stringify(pl.wrap)}},`;
+    });
+    calibOut.value = `  "${v.id}": {\n${lines.join('\n')}\n  },`;
   }
   if (calib) {
     document.body.classList.add('calib');
     calibOut = document.createElement('textarea'); calibOut.id = 'calib-out'; document.body.appendChild(calibOut);
-    state.showOpen = true;
+    state.showOpen = true; state.demo = false;
   }
-  window.__bmt = { VIEWS, state, renderFrame, studioFrame, setView, selectSpot };
+  window.__bmt = { VIEWS, state, renderFrame, studioFrame, heroFrame, setView, selectSpot, stickerCache, meshOf, normPlacement, surface, basisToPoints, multmv };
 
   /* ---------- Go ---------- */
   // Deep links: ?view=rear34&spot=trunk&text=ACME (handy for sharing a specific angle)
@@ -455,6 +647,12 @@
   if (qs.get('text')) { state.previewText = qs.get('text').slice(0, 24); document.getElementById('logo-text').value = state.previewText; }
   if (qs.get('spot') && spotById[qs.get('spot')]) state.selected = qs.get('spot');
   if (qs.has('shot')) document.body.classList.add('shot');
+  if (qs.has('nodemo')) { state.demo = false; const t = document.getElementById('toggle-demo'); if (t) t.checked = false; }
+  if (qs.get('logo')) {
+    // ?logo=<same-origin image url> previews a logo file from a link
+    fetch(qs.get('logo')).then(r => r.blob()).then(b => readLogo(new File([b], 'logo', { type: b.type }), (url, type) => { state.rawLogo = url; state.rawType = type; applyPreviewLogo(); })).catch(() => {});
+  }
   renderAll();
-  window.addEventListener('load', () => { fitOverlay(heroFrame); fitOverlay(studioFrame); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { stickerCache.clear(); renderFrame(heroFrame); renderFrame(studioFrame); });
+  window.addEventListener('load', () => { renderFrame(heroFrame); renderFrame(studioFrame); });
 })();
