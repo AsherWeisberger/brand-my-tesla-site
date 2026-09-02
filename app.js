@@ -262,13 +262,28 @@
     const sh = (type, src) => { const o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o); return o; };
     const prog = gl.createProgram();
     gl.attachShader(prog, sh(gl.VERTEX_SHADER, 'attribute vec2 p; attribute vec2 t; varying vec2 v; void main(){ v = t; gl_Position = vec4(p, 0.0, 1.0); }'));
-    gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, 'precision mediump float; uniform sampler2D s; varying vec2 v; void main(){ gl_FragColor = texture2D(s, v); }'));
+    gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, `
+      precision mediump float; uniform sampler2D s; uniform sampler2D paint; uniform vec2 res; uniform float flip; varying vec2 v;
+      float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+      void main(){
+        vec4 d = texture2D(s, v, 0.6);                       // decal (premultiplied), slight softness like a photo
+        vec2 pu = gl_FragCoord.xy / res; pu.y = 1.0 - pu.y; if (flip > 0.5) pu.x = 1.0 - pu.x;
+        vec3 p = texture2D(paint, pu).rgb;
+        float L = dot(p, vec3(0.299, 0.587, 0.114));
+        float shade = mix(0.55, 1.0, pow(L, 1.4));           // vinyl sits in the paint's shadows
+        float gloss = pow(smoothstep(0.80, 1.0, L), 2.0) * 0.55; // and catches its reflections
+        vec3 c = d.rgb * shade + gloss * d.a * (0.35 + 0.65 * p);
+        float g = (hash(gl_FragCoord.xy) - 0.5) * 0.04 * d.a;
+        gl_FragColor = vec4(c + g, d.a);
+      }`));
     gl.linkProgram(prog); gl.useProgram(prog);
     const ctx = {
       gl, prog, aniso: gl.getExtension('EXT_texture_filter_anisotropic') || gl.getExtension('WEBKIT_EXT_texture_filter_anisotropic'),
       pBuf: gl.createBuffer(), tBuf: gl.createBuffer(), pLoc: gl.getAttribLocation(prog, 'p'), tLoc: gl.getAttribLocation(prog, 't'),
-      textures: new WeakMap(),
+      textures: new WeakMap(), paintTex: {},
+      uRes: gl.getUniformLocation(prog, 'res'), uFlip: gl.getUniformLocation(prog, 'flip'), uS: gl.getUniformLocation(prog, 's'), uPaint: gl.getUniformLocation(prog, 'paint'),
     };
+    gl.uniform1i(ctx.uS, 0); gl.uniform1i(ctx.uPaint, 1);
     gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     glCache.set(canvas, ctx);
     return ctx;
@@ -288,6 +303,18 @@
     g.textures.set(img, tex);
     return tex;
   }
+  function glPaint(g, img, src) {
+    const gl = g.gl;
+    if (!g.paintTex[src]) {
+      const tex = gl.createTexture(); gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, img);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      g.paintTex[src] = tex;
+    }
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, g.paintTex[src]); gl.activeTexture(gl.TEXTURE0);
+  }
   function glDrawMesh(g, img, grid) {
     const gl = g.gl, pos = [], uv = [], vmax = (img.artH || img.height) / img.height;
     const P = p => [p[0] / IMG_W * 2 - 1, 1 - p[1] / IMG_H * 2];
@@ -297,7 +324,7 @@
       pos.push(...d00, ...d10, ...d11, ...d00, ...d11, ...d01);
       uv.push(u0, v0, u1, v0, u1, v1, u0, v0, u1, v1, u0, v1);
     }
-    gl.bindTexture(gl.TEXTURE_2D, glTexture(g, img));
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, glTexture(g, img));
     gl.bindBuffer(gl.ARRAY_BUFFER, g.pBuf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(pos), gl.STREAM_DRAW);
     gl.enableVertexAttribArray(g.pLoc); gl.vertexAttribPointer(g.pLoc, 2, gl.FLOAT, false, 0, 0);
     gl.bindBuffer(gl.ARRAY_BUFFER, g.tBuf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uv), gl.STREAM_DRAW);
@@ -314,19 +341,24 @@
     frame.classList.toggle('flip', !!view.flip);
     const seq = ++renderSeq; frame.dataset.seq = seq;
     const vin = frame.querySelector('.car-vinyl'), ui = frame.querySelector('.car-ui');
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const dpr = Math.min(window.devicePixelRatio || 1, 3);
     const cw = Math.max(1, Math.round(frame.clientWidth * dpr)), ch = Math.round(cw * IMG_H / IMG_W);
     const k = cw / IMG_W;
     const placements = Object.entries(view.quads).map(([id, p]) => ({ spot: spotById[id], pl: normPlacement(p) }));
     const stickers = await Promise.all(placements.map(p => stickerFor(p.spot)));
     if (frame.dataset.seq !== String(seq)) return; // a newer render superseded this one
     const g = getGL(vin);
-    const ss = g ? Math.max(dpr, 1.5) : 2; // supersample so edges stay clean
-    const vw = Math.round(frame.clientWidth * ss), vh = Math.round(vw * IMG_H / IMG_W);
+    const ss = Math.min(Math.max(window.devicePixelRatio || 1, 2), 3); // full pixel density, supersampled on 1x screens
+    const vw = Math.min(4096, Math.round(frame.clientWidth * ss)), vh = Math.round(vw * IMG_H / IMG_W);
     vin.width = vw; vin.height = vh; ui.width = cw; ui.height = ch;
+    vin.classList.toggle('gl', !!g);
     let vc = null;
-    if (g) { g.gl.viewport(0, 0, vw, vh); g.gl.clearColor(0, 0, 0, 0); g.gl.clear(g.gl.COLOR_BUFFER_BIT); }
-    else { vc = vin.getContext('2d'); vc.imageSmoothingQuality = 'high'; }
+    if (g) {
+      const paintImg = await loadImage(view.src); if (frame.dataset.seq !== String(seq)) return;
+      glPaint(g, paintImg, view.src);
+      g.gl.uniform2f(g.uRes, vw, vh); g.gl.uniform1f(g.uFlip, view.flip ? 1 : 0);
+      g.gl.viewport(0, 0, vw, vh); g.gl.clearColor(0, 0, 0, 0); g.gl.clear(g.gl.COLOR_BUFFER_BIT);
+    } else { vc = vin.getContext('2d'); vc.imageSmoothingQuality = 'high'; }
     const uc = ui.getContext('2d');
     placements.forEach(({ spot, pl }, n) => {
       const st = stickers[n]; if (!st || !st.canvas) return;
