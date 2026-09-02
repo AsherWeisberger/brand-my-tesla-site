@@ -28,6 +28,22 @@ bend an edge). The JSON for the current view appears in a box at the bottom of t
 Or run `python3 calib.py out-dir` (needs Pillow and numpy) to render full size composites with a grid
 so you can read coordinates off them.
 
+### Door, frunk, and trunk views
+
+The viewer supports extra car states per camera angle. Drop photos into `cars/` with these names and
+the buttons appear in the HUD on their own, no code change:
+
+| State | File name pattern | Example |
+| --- | --- | --- |
+| Doors open | `cars/<view>-doors.jpg` | `cars/side-doors.jpg`, `cars/hero-34-doors.jpg` |
+| Frunk open | `cars/<view>-frunk.jpg` | `cars/front-frunk.jpg`, `cars/hero-34-frunk.jpg` |
+| Trunk open | `cars/<view>-trunk.jpg` | `cars/rear-trunk.jpg`, `cars/rear-34-trunk.jpg` |
+
+`<view>` is the base photo name: `hero-34`, `front`, `side`, `rear-34`, `rear`. The photo must be the
+same car, same camera, same studio as the base photo (1792 x 1008) so the placements still line up.
+The base photos came out of Grok's image generator, so the fastest way to get these is the same prompt
+plus "driver door open" or "frunk open" or "trunk open".
+
 ### Handy URL params
 
 - `?view=rear34` opens on a given angle: `front34`, `front`, `side-l`, `side-r`, `rear34`, `rear`
@@ -36,6 +52,8 @@ so you can read coordinates off them.
 - `?logo=cars/some-file.png` previews a same origin logo file from a link
 - `?nodemo=1` hides the example brand marks and shows plain outlines on open spots
 - `?shot=1` hides everything except the car viewer (useful for screenshots and embeds)
+- `?page=1` pins the hero to a fixed height for full page screenshots
+- `?at=auction` jumps to a section on load
 
 ## Bids
 

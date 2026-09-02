@@ -87,7 +87,7 @@
     save(bids) { try { localStorage.setItem(this.key, JSON.stringify(bids)); } catch {} },
   };
   let bids = store.load(); // { spotId: { amount, company, name, email, logo, at } }
-  const state = { view: 'front34', selected: null, previewLogo: null, rawLogo: null, rawType: '', previewText: '', showOpen: true, demo: true, cutout: true };
+  const state = { view: 'front34', selected: null, previewLogo: null, rawLogo: null, rawType: '', previewText: '', demo: true, cutout: true, carState: null };
 
   const money = n => '$' + Math.round(n).toLocaleString('en-US');
   const topBid = id => bids[id] || null;
@@ -158,7 +158,7 @@
     let cx = x - w / 2;
     for (const ch of text) { ctx.fillText(ch, cx + ctx.measureText(ch).width / 2, y); cx += ctx.measureText(ch).width + spacing; }
   }
-  const SANS = '"Instrument Sans", "Helvetica Neue", Arial, sans-serif', SERIF = '"Instrument Serif", Georgia, serif';
+  const SANS = '"Inter", "Helvetica Neue", Arial, sans-serif', SERIF = '"Instrument Serif", Georgia, serif';
   function textSticker(text, ratio, color, opts = {}) {
     const c = stickerCanvas(ratio), ctx = c.getContext('2d'), W = c.width, H = c.artH;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = color;
@@ -332,12 +332,37 @@
     gl.drawArrays(gl.TRIANGLES, 0, pos.length / 2);
   }
 
-  /* ---------- Rendering: car frames ---------- */
+  /* ---------- Car states (doors open, frunk, trunk) ----------
+     Drop photos into cars/ with these names and the buttons appear on their own:
+       doors:  cars/<view>-doors.jpg   e.g. cars/side-doors.jpg, cars/hero-34-doors.jpg
+       frunk:  cars/<view>-frunk.jpg   e.g. cars/front-frunk.jpg, cars/hero-34-frunk.jpg
+       trunk:  cars/<view>-trunk.jpg   e.g. cars/rear-trunk.jpg, cars/rear-34-trunk.jpg
+     Same camera, same car, same studio. Placements stay put; the photo underneath swaps. */
+  const STATES = [
+    { id: 'doors', label: 'Doors open' },
+    { id: 'frunk', label: 'Frunk' },
+    { id: 'trunk', label: 'Trunk' },
+  ];
+  const stateSrc = (view, st) => view.src.replace(/\.jpg$/, `-${st}.jpg`);
+  const availableStates = {}; // viewId -> Set of state ids whose photos exist
+  async function probeStates() {
+    for (const v of VIEWS) {
+      availableStates[v.id] = new Set();
+      for (const st of STATES) { const im = await loadImage(stateSrc(v, st.id)); if (im) availableStates[v.id].add(st.id); }
+    }
+    renderStateTabs();
+  }
+  function currentSrc(view) {
+    return (state.carState && availableStates[view.id] && availableStates[view.id].has(state.carState)) ? stateSrc(view, state.carState) : view.src;
+  }
+
+  /* ---------- Rendering: the car frame ---------- */
+  const frame = document.getElementById('studio-frame');
+  const layers = frame.querySelectorAll('.car-img');
+  const paintLayers = frame.querySelector('.paint-layers');
   let renderSeq = 0;
-  async function renderFrame(frame) {
-    const view = viewById[frame.dataset.view];
-    const img = frame.querySelector('.car-img');
-    if (img.getAttribute('src') !== view.src) img.src = view.src;
+  async function renderFrame() {
+    const view = viewById[state.view];
     frame.classList.toggle('flip', !!view.flip);
     const seq = ++renderSeq; frame.dataset.seq = seq;
     const vin = frame.querySelector('.car-vinyl'), ui = frame.querySelector('.car-ui');
@@ -346,208 +371,243 @@
     const k = cw / IMG_W;
     const placements = Object.entries(view.quads).map(([id, p]) => ({ spot: spotById[id], pl: normPlacement(p) }));
     const stickers = await Promise.all(placements.map(p => stickerFor(p.spot)));
-    if (frame.dataset.seq !== String(seq)) return; // a newer render superseded this one
+    if (frame.dataset.seq !== String(seq)) return;
     const g = getGL(vin);
-    const ss = Math.min(Math.max(window.devicePixelRatio || 1, 2), 3); // full pixel density, supersampled on 1x screens
+    const ss = Math.min(Math.max(window.devicePixelRatio || 1, 2), 3);
     const vw = Math.min(4096, Math.round(frame.clientWidth * ss)), vh = Math.round(vw * IMG_H / IMG_W);
     vin.width = vw; vin.height = vh; ui.width = cw; ui.height = ch;
     vin.classList.toggle('gl', !!g);
     let vc = null;
+    const src = currentSrc(view);
     if (g) {
-      const paintImg = await loadImage(view.src); if (frame.dataset.seq !== String(seq)) return;
-      glPaint(g, paintImg, view.src);
+      const paintImg = await loadImage(src); if (frame.dataset.seq !== String(seq)) return;
+      glPaint(g, paintImg, src);
       g.gl.uniform2f(g.uRes, vw, vh); g.gl.uniform1f(g.uFlip, view.flip ? 1 : 0);
       g.gl.viewport(0, 0, vw, vh); g.gl.clearColor(0, 0, 0, 0); g.gl.clear(g.gl.COLOR_BUFFER_BIT);
     } else { vc = vin.getContext('2d'); vc.imageSmoothingQuality = 'high'; }
     const uc = ui.getContext('2d');
     placements.forEach(({ spot, pl }, n) => {
       const st = stickers[n]; if (!st || !st.canvas) return;
-      if (!state.showOpen && st.kind !== 'vinyl') return;
       const grid = meshOf(pl);
       if (g) glDrawMesh(g, st.canvas, grid); else drawMesh(vc, st.canvas, grid, vw / IMG_W);
       if (st.kind === 'ghost') {
         tracePath(uc, outlineOf(grid), k);
-        uc.fillStyle = 'rgba(255,255,255,.28)'; uc.fill();
-        uc.lineWidth = Math.max(1, 1.5 * k * 2); uc.strokeStyle = 'rgba(20,19,17,.45)'; uc.stroke();
+        uc.fillStyle = 'rgba(255,255,255,.22)'; uc.fill();
+        uc.lineWidth = Math.max(1, 1.2 * k * 2); uc.strokeStyle = 'rgba(255,255,255,.85)'; uc.stroke();
       }
     });
-    const hits = frame.querySelector('.car-hits');
-    if (hits) renderHits(hits, view);
+    renderHits(view); renderPins(view);
+    paintLayers.classList.remove('fading');
   }
 
-  function renderHits(svg, view) {
+  function renderHits(view) {
+    const svg = frame.querySelector('.car-hits');
     svg.innerHTML = '';
     const ns = 'http://www.w3.org/2000/svg';
-    let selTop = null;
     for (const [id, p] of Object.entries(view.quads)) {
-      const grid = meshOf(normPlacement(p)), pts = outlineOf(grid);
+      const pts = outlineOf(meshOf(normPlacement(p)));
       const poly = document.createElementNS(ns, 'polygon');
       poly.setAttribute('points', pts.map(q => q.map(n => n.toFixed(1)).join(',')).join(' '));
       poly.dataset.spot = id;
-      if (state.selected === id) { poly.classList.add('selected'); selTop = grid; }
-      poly.addEventListener('click', () => selectSpot(id, false));
-      const t = document.createElementNS(ns, 'title'); t.textContent = `${spotById[id].name} · ${money(currentPrice(id))}`;
-      poly.appendChild(t);
+      if (state.selected === id) poly.classList.add('selected');
+      poly.addEventListener('click', e => { e.stopPropagation(); selectSpot(id, false); });
       svg.appendChild(poly);
-    }
-    if (selTop) {
-      const top = selTop[0], cx = top.reduce((a, q) => a + q[0], 0) / top.length, ty = Math.min(...top.map(q => q[1]));
-      const label = `${spotById[state.selected].name}  ·  ${money(currentPrice(state.selected))}`;
-      const w = label.length * 12 + 28, h = 38;
-      const g = document.createElementNS(ns, 'g');
-      const r = document.createElementNS(ns, 'rect');
-      r.setAttribute('class', 'tag-bg'); r.setAttribute('rx', 19);
-      r.setAttribute('x', cx - w / 2); r.setAttribute('y', ty - h - 14); r.setAttribute('width', w); r.setAttribute('height', h);
-      const tx = document.createElementNS(ns, 'text');
-      tx.setAttribute('class', 'tag'); tx.setAttribute('x', cx); tx.setAttribute('y', ty - h - 14 + 26); tx.setAttribute('text-anchor', 'middle');
-      tx.textContent = label;
-      g.appendChild(r); g.appendChild(tx); svg.appendChild(g);
     }
     if (calib) renderCalibHandles(svg, view);
   }
 
-  const heroFrame = document.getElementById('hero-frame');
-  const studioFrame = document.getElementById('studio-frame');
-  function renderAll() {
-    heroFrame.dataset.view = 'front34';
-    renderFrame(heroFrame);
-    studioFrame.dataset.view = state.view;
-    renderFrame(studioFrame);
-    renderTabs(); renderSpotList(); renderSpotDetail(); renderTable(); renderStats();
+  const pinsEl = document.getElementById('pins');
+  function renderPins(view) {
+    pinsEl.innerHTML = '';
+    for (const [id, p] of Object.entries(view.quads)) {
+      const grid = meshOf(normPlacement(p));
+      const c = grid[Math.round(NV / 2)][Math.round(NU / 2)];
+      const top = grid[0][Math.round(NU / 2)];
+      const s = spotById[id], b = topBid(id);
+      const pin = document.createElement('button');
+      pin.type = 'button';
+      pin.className = 'pin' + (c[0] > IMG_W * 0.72 ? ' left' : '') + (state.selected === id ? ' selected' : '');
+      pin.style.left = (c[0] / IMG_W * 100) + '%';
+      pin.style.top = (Math.min(c[1], top[1] - 4) / IMG_H * 100) + '%';
+      pin.innerHTML = `<span class="dot"></span><span class="tag"><b>${s.name}</b><small>${b ? b.company + ' · ' : ''}${money(currentPrice(id))}</small></span>`;
+      pin.setAttribute('aria-label', `${s.name}, ${money(currentPrice(id))}`);
+      pin.addEventListener('click', e => { e.stopPropagation(); selectSpot(id, false); });
+      pinsEl.appendChild(pin);
+    }
   }
-  let resizeT;
-  window.addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => { renderFrame(heroFrame); renderFrame(studioFrame); }, 120); });
 
-  /* ---------- View tabs + turning ---------- */
+  /* ---------- Views, turning, states ---------- */
   const tabs = document.getElementById('view-tabs');
   function renderTabs() {
     tabs.innerHTML = '';
     for (const v of VIEWS) {
       const b = document.createElement('button');
-      b.type = 'button'; b.role = 'tab'; b.textContent = v.label;
+      b.type = 'button'; b.setAttribute('role', 'tab'); b.textContent = v.label;
       b.setAttribute('aria-selected', v.id === state.view ? 'true' : 'false');
       b.addEventListener('click', () => setView(v.id));
       tabs.appendChild(b);
     }
   }
+  const stateTabs = document.getElementById('state-tabs');
+  function renderStateTabs() {
+    const avail = availableStates[state.view] || new Set();
+    stateTabs.innerHTML = '';
+    if (!avail.size) { stateTabs.hidden = true; if (state.carState) { state.carState = null; } return; }
+    stateTabs.hidden = false;
+    for (const st of STATES) {
+      if (!avail.has(st.id)) continue;
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'hud-btn'; b.textContent = st.label;
+      b.setAttribute('aria-pressed', state.carState === st.id ? 'true' : 'false');
+      b.addEventListener('click', () => { state.carState = state.carState === st.id ? null : st.id; swapPhoto(); renderStateTabs(); });
+      stateTabs.appendChild(b);
+    }
+  }
+  function swapPhoto() {
+    const view = viewById[state.view], src = currentSrc(view);
+    const active = frame.querySelector('.car-img.active'), next = [...layers].find(l => l !== active);
+    if (active.getAttribute('src') === src) { renderFrame(); return; }
+    paintLayers.classList.add('fading');
+    const go = () => { next.classList.add('active'); active.classList.remove('active'); renderFrame(); };
+    next.onload = go; next.src = src;
+    if (next.complete && next.naturalWidth) go();
+  }
   function setView(id) {
+    if (state.view === id) return;
     state.view = id;
-    studioFrame.dataset.view = id;
-    renderFrame(studioFrame); renderTabs();
+    if (!(availableStates[id] && availableStates[id].has(state.carState))) state.carState = null;
+    renderTabs(); renderStateTabs(); swapPhoto();
   }
   function turn(dir) {
     const i = VIEWS.findIndex(v => v.id === state.view);
     setView(VIEWS[(i + dir + VIEWS.length) % VIEWS.length].id);
   }
-  studioFrame.querySelector('.turn-prev').addEventListener('click', e => { e.stopPropagation(); turn(-1); });
-  studioFrame.querySelector('.turn-next').addEventListener('click', e => { e.stopPropagation(); turn(1); });
-  studioFrame.addEventListener('keydown', e => {
-    if (e.key === 'ArrowLeft') { turn(-1); e.preventDefault(); }
-    if (e.key === 'ArrowRight') { turn(1); e.preventDefault(); }
+  frame.parentElement.querySelector('.turn-prev').addEventListener('click', () => { stopTurntable(); turn(-1); });
+  frame.parentElement.querySelector('.turn-next').addEventListener('click', () => { stopTurntable(); turn(1); });
+  frame.addEventListener('keydown', e => {
+    if (e.key === 'ArrowLeft') { stopTurntable(); turn(-1); e.preventDefault(); }
+    if (e.key === 'ArrowRight') { stopTurntable(); turn(1); e.preventDefault(); }
   });
-  // Drag to turn
   let drag = null;
-  studioFrame.addEventListener('pointerdown', e => {
-    if (calib || e.target.closest('.turn')) return;
+  frame.addEventListener('pointerdown', e => {
+    if (calib || e.target.closest('.pin')) return;
     drag = { x: e.clientX, moved: 0 };
-    studioFrame.setPointerCapture(e.pointerId);
   });
-  studioFrame.addEventListener('pointermove', e => {
+  frame.addEventListener('pointermove', e => {
     if (!drag) return;
     const dx = e.clientX - drag.x;
-    if (Math.abs(dx) > 70) { turn(dx > 0 ? 1 : -1); drag.x = e.clientX; drag.moved++; studioFrame.classList.add('dragging'); }
+    if (Math.abs(dx) > 60) { stopTurntable(); turn(dx > 0 ? -1 : 1); drag.x = e.clientX; drag.moved++; frame.classList.add('dragging'); }
   });
-  const endDrag = () => { drag = null; studioFrame.classList.remove('dragging'); };
-  studioFrame.addEventListener('pointerup', endDrag);
-  studioFrame.addEventListener('pointercancel', endDrag);
+  const endDrag = () => { drag = null; frame.classList.remove('dragging'); };
+  frame.addEventListener('pointerup', endDrag); frame.addEventListener('pointercancel', endDrag); frame.addEventListener('pointerleave', endDrag);
 
-  document.getElementById('toggle-outlines').addEventListener('change', e => {
-    state.showOpen = e.target.checked; renderFrame(studioFrame); renderFrame(heroFrame);
+  let turntableT = null;
+  const turntableBtn = document.getElementById('turntable');
+  function stopTurntable() { if (turntableT) { clearInterval(turntableT); turntableT = null; turntableBtn.setAttribute('aria-pressed', 'false'); } }
+  turntableBtn.addEventListener('click', () => {
+    if (turntableT) return stopTurntable();
+    turntableBtn.setAttribute('aria-pressed', 'true');
+    turn(1); turntableT = setInterval(() => turn(1), 2600);
   });
 
-  /* ---------- Selection ---------- */
+  document.getElementById('toggle-demo').addEventListener('change', e => { state.demo = e.target.checked; renderFrame(); });
+
+  /* ---------- Selection + sheet ---------- */
+  const sheet = document.getElementById('sheet'), sheetBody = document.getElementById('sheet-body');
+  function openSheet() { sheet.classList.add('open'); }
+  function closeSheet() { sheet.classList.remove('open'); }
+  document.getElementById('sheet-close').addEventListener('click', closeSheet);
+  document.getElementById('hud-logo').addEventListener('click', () => { openSheet(); setTimeout(() => document.getElementById('logo-input').closest('label').focus(), 50); });
+
   function selectSpot(id, jumpView) {
     state.selected = id;
     if (jumpView && !viewById[state.view].quads[id]) setView(spotById[id].view);
-    renderFrame(studioFrame); renderSpotList(); renderSpotDetail();
+    const view = viewById[state.view];
+    renderHits(view); renderPins(view);
+    renderSheet(); renderCards(); renderSchematic(); openSheet();
   }
-
-  const spotList = document.getElementById('spot-list');
-  function renderSpotList() {
-    spotList.innerHTML = '';
-    for (const s of SPOTS) {
-      const li = document.createElement('li');
-      if (s.id === state.selected) li.classList.add('selected');
-      const b = topBid(s.id);
-      li.innerHTML = `<div class="sl-name">${s.name}</div><div class="sl-price">${money(currentPrice(s.id))}<small>${b ? b.company : 'floor'}</small></div><div class="sl-meta">${s.size} · ${s.cm}</div>`;
-      li.addEventListener('click', () => selectSpot(s.id, true));
-      spotList.appendChild(li);
-    }
-  }
-
-  const detail = document.getElementById('spot-detail');
-  function renderSpotDetail() {
+  function renderSheet() {
     if (!state.selected) {
-      detail.innerHTML = `<div class="panel-eyebrow">Selected spot</div><div class="spot-empty">Click a panel on the car, or pick one from the list below.</div>`;
+      sheetBody.innerHTML = `<div class="sheet-eyebrow">Pick a panel</div><div class="sheet-name">Tap the car.</div><p class="sheet-where">Every pin is a panel you can bid on. Turn the car to see them all.</p>`;
       return;
     }
-    const s = spotById[state.selected]; const b = topBid(s.id);
-    detail.innerHTML = `
-      <div class="panel-eyebrow">Selected spot</div>
-      <div class="spot-detail-name">${s.name}</div>
-      <div class="spot-detail-where">${s.where}</div>
-      <div class="spot-detail-grid">
-        <div><div class="k">Current ${b ? 'bid' : 'floor'}</div><div class="v big">${money(currentPrice(s.id))}</div></div>
-        <div><div class="k">Held by</div><div class="v">${b ? b.company : 'Open'}</div></div>
-        <div><div class="k">Size</div><div class="v"><span class="size-pill ${s.size.toLowerCase()}">${s.size}</span></div></div>
-        <div><div class="k">Vinyl</div><div class="v">${s.cm}<br><span class="small">${s.in}</span></div></div>
+    const s = spotById[state.selected], b = topBid(s.id);
+    sheetBody.innerHTML = `
+      <div class="sheet-eyebrow">${b ? 'Current bid' : 'Open at floor'}</div>
+      <div class="sheet-name">${s.name}</div>
+      <div class="sheet-where">${s.where}</div>
+      ${b && b.logo ? `<img class="held-logo" src="${b.logo}" alt="${b.company}" style="margin-top:14px">` : ''}
+      <div class="sheet-grid">
+        <div><div class="k">${b ? 'Top bid' : 'Floor'}</div><div class="v big">${money(currentPrice(s.id))}</div></div>
+        <div><div class="k">Held by</div><div class="v">${b ? b.company : 'Nobody yet'}</div></div>
+        <div><div class="k">Vinyl size</div><div class="v">${s.cm}<br><span class="muted">${s.in}</span></div></div>
+        <div><div class="k">Next bid</div><div class="v">${money(minBid(s.id))}+</div></div>
       </div>
-      <div class="spot-detail-actions">
-        <button class="btn btn-dark btn-sm" type="button" data-bid="${s.id}">Bid ${money(minBid(s.id))}+</button>
-        <button class="btn btn-ghost btn-sm" type="button" data-view-of="${s.id}">Best angle</button>
+      <div class="sheet-actions">
+        <button class="btn btn-primary" type="button" data-bid>Bid ${money(minBid(s.id))}</button>
+        <button class="btn btn-ghost" type="button" data-angle>Best angle</button>
       </div>`;
-    detail.querySelector('[data-bid]').addEventListener('click', () => openBid(s.id));
-    detail.querySelector('[data-view-of]').addEventListener('click', () => setView(s.view));
+    sheetBody.querySelector('[data-bid]').addEventListener('click', () => openBid(s.id));
+    sheetBody.querySelector('[data-angle]').addEventListener('click', () => { stopTurntable(); setView(s.view); });
   }
 
-  /* ---------- Table + stats ---------- */
-  const tbody = document.querySelector('#auction-table tbody');
-  function renderTable() {
-    tbody.innerHTML = '';
+  /* ---------- Cards + schematic + stats ---------- */
+  const cardsEl = document.getElementById('cards');
+  function renderCards() {
+    cardsEl.innerHTML = '';
     for (const s of SPOTS) {
       const b = topBid(s.id);
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td><div class="t-name">${s.name}</div><div class="t-sub">${s.where}</div></td>
-        <td><span class="size-pill ${s.size.toLowerCase()}">${s.size}</span><div class="t-sub" style="margin-top:6px">${s.cm} · ${s.in}</div></td>
-        <td>${b ? `<div class="holder">${b.logo ? `<img src="${b.logo}" alt="">` : ''}<span>${b.company}</span></div>` : '<span class="holder"><span class="dash">—</span></span>'}</td>
-        <td><div class="t-price">${money(currentPrice(s.id))}<small>${b ? '1 bid' : '0 bids · floor'}</small></div></td>
-        <td style="text-align:right"><button class="btn btn-dark btn-sm" type="button">Bid</button></td>`;
-      tr.querySelector('button').addEventListener('click', () => openBid(s.id));
-      tr.querySelector('.t-name').style.cursor = 'pointer';
-      tr.querySelector('.t-name').addEventListener('click', () => { selectSpot(s.id, true); document.getElementById('car').scrollIntoView({ behavior: 'smooth' }); });
-      tbody.appendChild(tr);
+      const card = document.createElement('article');
+      card.className = 'card' + (s.floor >= 1000 ? ' marquee' : '') + (state.selected === s.id ? ' selected' : '');
+      card.innerHTML = `
+        <div class="card-top"><div><div class="card-name">${s.name}</div><div class="card-sub">${s.where}</div></div><span class="badge ${b ? 'live' : ''}">${b ? 'Bid live' : s.size}</span></div>
+        <div class="card-mid">
+          <div class="price">${money(currentPrice(s.id))}<small>${b ? '1 bid · next ' + money(minBid(s.id)) : 'floor · ' + s.cm}</small></div>
+          <div class="holder">${b ? (b.logo ? `<img src="${b.logo}" alt="">` : '') + `<span>${b.company}</span>` : '<span class="ph">+</span>'}</div>
+        </div>
+        <div class="card-actions"><button class="btn btn-primary btn-sm" type="button" data-bid>Bid</button><button class="btn btn-ghost btn-sm" type="button" data-view>View on car</button></div>`;
+      card.querySelector('[data-bid]').addEventListener('click', e => { e.stopPropagation(); openBid(s.id); });
+      card.querySelector('[data-view]').addEventListener('click', e => { e.stopPropagation(); goToSpot(s.id); });
+      card.addEventListener('click', () => goToSpot(s.id));
+      cardsEl.appendChild(card);
     }
+  }
+  function goToSpot(id) {
+    stopTurntable();
+    selectSpot(id, true);
+    document.getElementById('stage').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  const schematic = document.getElementById('schematic');
+  schematic.querySelectorAll('.panel').forEach(p => p.addEventListener('click', () => goToSpot(p.dataset.spot)));
+  function renderSchematic() {
+    schematic.querySelectorAll('.panel').forEach(p => {
+      p.classList.toggle('held', !!topBid(p.dataset.spot));
+      p.classList.toggle('selected', state.selected === p.dataset.spot);
+    });
+  }
+  function countUp(el, to, fmt) {
+    const from = Number(el.dataset.v || 0); el.dataset.v = to;
+    if (from === to) { el.textContent = fmt(to); return; }
+    const t0 = performance.now(), dur = 900;
+    const step = t => { const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3); el.textContent = fmt(Math.round(from + (to - from) * e)); if (k < 1) requestAnimationFrame(step); };
+    requestAnimationFrame(step);
   }
   function renderStats() {
     const held = SPOTS.filter(s => bids[s.id]);
     const raised = held.reduce((a, s) => a + bids[s.id].amount, 0);
-    document.getElementById('stat-raised').textContent = money(raised);
-    document.getElementById('stat-raised-label').textContent = `raised · ${held.length} of ${SPOTS.length} spots with bids`;
-    document.getElementById('stat-bar').style.width = (held.length / SPOTS.length * 100) + '%';
-    const t = document.getElementById('ticker');
-    if (!held.length) t.innerHTML = '<span>Auction is open. No bids yet, floors are live.</span>';
-    else {
-      const latest = held.map(s => ({ s, b: bids[s.id] })).sort((a, b) => b.b.at - a.b.at)[0];
-      t.innerHTML = `<span><strong>${latest.b.company}</strong> holds the ${latest.s.name.toLowerCase()} at ${money(latest.b.amount)}. ${SPOTS.length - held.length} spots still open at floor.</span>`;
-    }
+    countUp(document.getElementById('stat-raised'), raised, money);
+    countUp(document.getElementById('stat-taken'), held.length, n => String(n));
+    const track = document.getElementById('ticker-track');
+    const items = SPOTS.map(s => { const b = topBid(s.id); return `<span><i class="${b ? 'held' : ''}"></i>${s.name} <b>${money(currentPrice(s.id))}</b>${b ? ' · ' + b.company : ''}</span>`; });
+    const lead = `<span><i class="held"></i><b>${money(raised)}</b> raised · ${held.length} of ${SPOTS.length} panels have bids</span>`;
+    track.innerHTML = [lead, ...items, lead, ...items].join('');
   }
   function tickCountdown() {
     const ms = CLOSES_AT - Date.now();
-    const el = document.getElementById('countdown');
-    if (ms <= 0) { el.textContent = 'Closed'; return; }
-    const d = Math.floor(ms / 864e5), h = Math.floor(ms % 864e5 / 36e5), m = Math.floor(ms % 36e5 / 6e4);
-    el.textContent = `${d}d ${h}h ${m}m`;
+    const els = [document.getElementById('countdown'), document.getElementById('nav-countdown')];
+    let txt = 'Closed';
+    if (ms > 0) { const d = Math.floor(ms / 864e5), h = Math.floor(ms % 864e5 / 36e5), m = Math.floor(ms % 36e5 / 6e4); txt = d > 0 ? `${d}d ${h}h` : `${h}h ${m}m`; }
+    els.forEach(el => { if (el) el.textContent = txt; });
   }
   tickCountdown(); setInterval(tickCountdown, 30000);
 
@@ -602,7 +662,6 @@
               d[i + 3] = Math.min(d[i + 3], Math.round(a * 255));
             }
             ctx.putImageData(id, 0, 0);
-            // Trim transparent margins so the mark fills the vinyl area
             let x0 = W, y0 = H, x1 = 0, y1 = 0;
             for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (d[(y * W + x) * 4 + 3] > 20) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
             if (x1 > x0 && y1 > y0) {
@@ -623,21 +682,17 @@
     processLogo(state.rawLogo, state.rawType, state.cutout, (url, info) => {
       state.previewLogo = url; state.previewText = ''; document.getElementById('logo-text').value = '';
       document.getElementById('logo-note').textContent = info.note;
-      renderFrame(studioFrame); renderFrame(heroFrame);
+      renderFrame();
     });
   }
   document.getElementById('logo-input').addEventListener('change', e => {
     readLogo(e.target.files[0], (url, type) => { state.rawLogo = url; state.rawType = type; applyPreviewLogo(); });
   });
   document.getElementById('logo-cutout').addEventListener('change', e => { state.cutout = e.target.checked; applyPreviewLogo(); });
-  document.getElementById('toggle-demo').addEventListener('change', e => { state.demo = e.target.checked; renderFrame(studioFrame); renderFrame(heroFrame); });
-  document.getElementById('logo-text').addEventListener('input', e => {
-    state.previewText = e.target.value.trim(); state.previewLogo = null; renderFrame(studioFrame); renderFrame(heroFrame);
-  });
+  document.getElementById('logo-text').addEventListener('input', e => { state.previewText = e.target.value.trim(); state.previewLogo = null; renderFrame(); });
   document.getElementById('logo-clear').addEventListener('click', () => {
     state.previewLogo = null; state.rawLogo = null; state.previewText = ''; document.getElementById('logo-text').value = ''; document.getElementById('logo-input').value = '';
-    document.getElementById('logo-note').textContent = '';
-    renderFrame(studioFrame); renderFrame(heroFrame);
+    document.getElementById('logo-note').textContent = ''; renderFrame();
   });
 
   /* ---------- Bidding ---------- */
@@ -645,30 +700,31 @@
   const bidForm = document.getElementById('bid-form');
   let bidSpot = null;
   function openBid(id) {
-    bidSpot = id;
-    const s = spotById[id]; const b = topBid(id);
+    bidSpot = id || state.selected || 'hood';
+    const s = spotById[bidSpot], b = topBid(bidSpot);
     document.getElementById('bid-title').textContent = s.name;
-    document.getElementById('bid-sub').textContent = `${s.size} · ${s.cm}. ${b ? `${b.company} holds it at ${money(b.amount)}. Minimum raise is ${money(MIN_RAISE)}.` : `Floor is ${money(s.floor)}.`}`;
+    document.getElementById('bid-sub').textContent = `${s.cm} vinyl. ${b ? `${b.company} holds it at ${money(b.amount)}. Minimum raise is ${money(MIN_RAISE)}.` : `Floor is ${money(s.floor)}.`}`;
     const amt = document.getElementById('bid-amount');
-    amt.min = minBid(id); amt.value = minBid(id);
-    modal.hidden = false;
-    setTimeout(() => amt.focus(), 50);
+    amt.min = minBid(bidSpot); amt.value = minBid(bidSpot);
+    modal.hidden = false; requestAnimationFrame(() => modal.classList.add('open'));
+    setTimeout(() => amt.focus(), 120);
   }
-  function closeBid() { modal.hidden = true; bidForm.reset(); }
+  function closeBid() { modal.classList.remove('open'); setTimeout(() => { modal.hidden = true; bidForm.reset(); }, 220); }
   document.getElementById('bid-close').addEventListener('click', closeBid);
+  document.getElementById('nav-bid').addEventListener('click', () => openBid(state.selected));
   modal.addEventListener('click', e => { if (e.target === modal) closeBid(); });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) closeBid(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { if (!modal.hidden) closeBid(); else closeSheet(); } });
   bidForm.addEventListener('submit', e => {
     e.preventDefault();
     const fd = new FormData(bidForm);
     const amount = Number(fd.get('amount'));
-    if (amount < minBid(bidSpot)) { alert(`Minimum bid for this spot is ${money(minBid(bidSpot))}.`); return; }
+    if (amount < minBid(bidSpot)) { alert(`Minimum bid for this panel is ${money(minBid(bidSpot))}.`); return; }
     const commit = logo => {
       bids[bidSpot] = { amount, company: String(fd.get('company')).trim(), name: String(fd.get('name')).trim(), email: String(fd.get('email')).trim(), logo: logo || null, at: Date.now() };
       store.save(bids);
       closeBid();
       selectSpot(bidSpot, true);
-      renderAll();
+      renderFrame(); renderCards(); renderSchematic(); renderStats();
     };
     const file = document.getElementById('bid-logo').files[0];
     if (file) readLogo(file, (url, type) => processLogo(url, type, true, commit)); else commit(null);
@@ -686,7 +742,20 @@
     e.target.reset();
   });
 
-  /* ---------- Calibration mode (?calib=1): drag corners, copy JSON from the box ---------- */
+  /* ---------- Nav + scroll reveal ---------- */
+  const nav = document.getElementById('nav');
+  const onScroll = () => nav.classList.toggle('scrolled', window.scrollY > 8);
+  window.addEventListener('scroll', onScroll, { passive: true }); onScroll();
+  const revealEls = [...document.querySelectorAll('.reveal')];
+  const revealVisible = () => revealEls.forEach(el => { if (!el.classList.contains('in') && el.getBoundingClientRect().top < window.innerHeight * 0.92) el.classList.add('in'); });
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver(es => es.forEach(en => { if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); } }), { threshold: 0.08 });
+    revealEls.forEach(el => io.observe(el));
+  }
+  window.addEventListener('scroll', revealVisible, { passive: true });
+  setTimeout(revealVisible, 400); setTimeout(revealVisible, 1500);
+
+  /* ---------- Calibration mode (?calib=1): drag corners and edge midpoints, copy JSON from the box ---------- */
   const calib = new URLSearchParams(location.search).has('calib');
   let calibOut;
   function renderCalibHandles(svg, view) {
@@ -704,7 +773,7 @@
           const move = mv => {
             const r = svg.getBoundingClientRect();
             onMove(Math.round((mv.clientX - r.left) / r.width * IMG_W), Math.round((mv.clientY - r.top) / r.height * IMG_H));
-            renderFrame(studioFrame); dumpCalib();
+            renderFrame(); dumpCalib();
           };
           c.addEventListener('pointermove', move);
           c.addEventListener('pointerup', () => c.removeEventListener('pointermove', move), { once: true });
@@ -726,23 +795,27 @@
   if (calib) {
     document.body.classList.add('calib');
     calibOut = document.createElement('textarea'); calibOut.id = 'calib-out'; document.body.appendChild(calibOut);
-    state.showOpen = true; state.demo = false;
+    state.demo = false;
   }
-  window.__bmt = { VIEWS, state, renderFrame, studioFrame, heroFrame, setView, selectSpot, stickerCache, meshOf, normPlacement, surface, basisToPoints, multmv };
+  window.__bmt = { VIEWS, state, renderFrame, frame, setView, selectSpot, stickerCache, meshOf, normPlacement, surface, basisToPoints, multmv };
 
-  /* ---------- Go ---------- */
-  // Deep links: ?view=rear34&spot=trunk&text=ACME (handy for sharing a specific angle)
+  /* ---------- Boot ---------- */
   const qs = new URLSearchParams(location.search);
-  if (qs.get('view') && viewById[qs.get('view')]) state.view = qs.get('view');
+  if (qs.get('view') && viewById[qs.get('view')]) { state.view = qs.get('view'); layers[0].src = viewById[state.view].src; }
   if (qs.get('text')) { state.previewText = qs.get('text').slice(0, 24); document.getElementById('logo-text').value = state.previewText; }
   if (qs.get('spot') && spotById[qs.get('spot')]) state.selected = qs.get('spot');
   if (qs.has('shot')) document.body.classList.add('shot');
-  if (qs.has('nodemo')) { state.demo = false; const t = document.getElementById('toggle-demo'); if (t) t.checked = false; }
+  if (qs.has('page')) document.body.classList.add('page');
+  if (qs.get('at')) { document.documentElement.style.scrollBehavior = 'auto'; setTimeout(() => { const el = document.getElementById(qs.get('at')); if (el) el.scrollIntoView(); }, 300); }
+  if (qs.has('nodemo')) { state.demo = false; document.getElementById('toggle-demo').checked = false; }
   if (qs.get('logo')) {
-    // ?logo=<same-origin image url> previews a logo file from a link
     fetch(qs.get('logo')).then(r => r.blob()).then(b => readLogo(new File([b], 'logo', { type: b.type }), (url, type) => { state.rawLogo = url; state.rawType = type; applyPreviewLogo(); })).catch(() => {});
   }
-  renderAll();
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { stickerCache.clear(); renderFrame(heroFrame); renderFrame(studioFrame); });
-  window.addEventListener('load', () => { renderFrame(heroFrame); renderFrame(studioFrame); });
+  renderTabs(); renderSheet(); renderCards(); renderSchematic(); renderStats(); renderFrame();
+  if (state.selected) openSheet();
+  probeStates();
+  let resizeT;
+  window.addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(renderFrame, 120); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { stickerCache.clear(); renderFrame(); });
+  window.addEventListener('load', renderFrame);
 })();
