@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Brand My Tesla — Your brand, on Robert Scoble's Model 3</title>
+<meta name="description" content="Auction for vinyl ad placements on Robert Scoble's white 2018 Tesla Model 3. Hood, trunk, doors, bumpers. Bid on a spot and your logo rides along.">
+<meta property="og:title" content="Brand My Tesla">
+<meta property="og:description" content="Bid on a vinyl spot on Robert Scoble's Model 3. Hood, trunk, doors, bumpers.">
+<meta property="og:image" content="cars/hero-34.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23111'/%3E%3Ctext x='16' y='22' text-anchor='middle' font-family='Georgia,serif' font-size='18' fill='%23fff'%3ET%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+
+<header class="nav">
+  <a class="brand" href="#top"><span class="brand-mark">T</span> Brand My Tesla</a>
+  <nav class="nav-links">
+    <a href="#auction">Live auction</a>
+    <a href="#how">How it works</a>
+    <a href="#car">The car</a>
+    <a href="#join">Your Tesla</a>
+    <a href="#faq">FAQ</a>
+  </nav>
+  <a class="btn btn-dark" href="#car">Get a spot</a>
+</header>
+
+<main id="top">
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-copy">
+      <p class="eyebrow">Robert Scoble · @Scobleizer · Unaligned</p>
+      <h1>Your brand, <em>on my Tesla.</em></h1>
+      <p class="lede">Eight vinyl spots on a white 2018 Model 3. Hood, trunk, four doors, two bumpers. The Tesla badge stays clean. Your logo rides the car through the Bay Area, Superchargers, conferences, and the posts that come with them.</p>
+      <div class="hero-stats">
+        <div>
+          <div class="stat" id="stat-raised">$0</div>
+          <div class="stat-label" id="stat-raised-label">raised · 0 of 8 spots with bids</div>
+          <div class="bar"><span id="stat-bar"></span></div>
+        </div>
+        <div>
+          <div class="stat" id="countdown">—</div>
+          <div class="stat-label">until the auction closes</div>
+        </div>
+      </div>
+      <div class="hero-actions">
+        <a class="btn btn-dark" href="#car">See the spots</a>
+        <a class="btn btn-ghost" href="#auction">Current bids</a>
+      </div>
+    </div>
+    <div class="hero-art">
+      <div class="car-frame" id="hero-frame" data-view="front34">
+        <img class="car-img" src="cars/hero-34.jpg" alt="White Tesla Model 3, front three quarter view" width="1792" height="1008">
+        <div class="car-overlay" aria-hidden="true"></div>
+      </div>
+      <p class="caption">Live preview. Logos on the car are the current top bidders. Empty panels are open spots.</p>
+    </div>
+  </section>
+
+  <!-- TICKER -->
+  <div class="ticker" id="ticker" aria-live="polite">
+    <span>Auction is open. No bids yet, floors are live.</span>
+  </div>
+
+  <!-- CAR / SPOT MAP -->
+  <section class="section" id="car">
+    <div class="section-head">
+      <h2>The car. <em>Pick a panel.</em></h2>
+      <p>Turn the car, click a panel to select it, and drop your own logo in to see exactly how it sits. Every placement below is mapped onto the real panel geometry, not guessed by an image generator.</p>
+    </div>
+
+    <div class="studio">
+      <div class="studio-stage">
+        <div class="view-tabs" role="tablist" id="view-tabs"></div>
+        <div class="car-frame studio-frame" id="studio-frame" data-view="front34" tabindex="0" aria-label="Car viewer. Use left and right arrow keys to turn the car.">
+          <img class="car-img" src="cars/hero-34.jpg" alt="" width="1792" height="1008">
+          <div class="car-overlay"></div>
+          <svg class="car-hits" viewBox="0 0 1792 1008" preserveAspectRatio="none"></svg>
+          <button class="turn turn-prev" type="button" aria-label="Previous view">‹</button>
+          <button class="turn turn-next" type="button" aria-label="Next view">›</button>
+        </div>
+        <div class="stage-foot">
+          <span class="hint">Drag to turn · click a panel to select · arrow keys work too</span>
+          <label class="toggle"><input type="checkbox" id="toggle-outlines" checked> Show open spots</label>
+        </div>
+      </div>
+
+      <aside class="studio-panel">
+        <div class="panel-block">
+          <div class="panel-eyebrow">Try your logo</div>
+          <p class="small">Upload a PNG or SVG with a transparent background. It goes on every open spot so you can compare placements. Nothing is uploaded anywhere, it stays in your browser.</p>
+          <div class="logo-row">
+            <label class="btn btn-dark btn-sm file-btn">Choose logo<input type="file" id="logo-input" accept="image/png,image/svg+xml,image/jpeg,image/webp"></label>
+            <input type="text" id="logo-text" placeholder="…or type a brand name" maxlength="24">
+            <button class="btn btn-ghost btn-sm" type="button" id="logo-clear">Clear</button>
+          </div>
+        </div>
+
+        <div class="panel-block" id="spot-detail">
+          <div class="panel-eyebrow">Selected spot</div>
+          <div class="spot-empty">Click a panel on the car, or pick one from the list below.</div>
+        </div>
+
+        <div class="panel-block">
+          <div class="panel-eyebrow">All spots</div>
+          <ul class="spot-list" id="spot-list"></ul>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- AUCTION TABLE -->
+  <section class="section" id="auction">
+    <div class="section-head">
+      <h2>The auction, <em>live.</em></h2>
+      <p>Every spot shows its current top bid. Floors are $750 and $1,000. Minimum raise is $50. The hood and trunk are the marquee $1,000 placements.</p>
+    </div>
+    <div class="table-wrap">
+      <table class="auction-table" id="auction-table">
+        <thead>
+          <tr><th>Spot</th><th>Size</th><th>Held by</th><th>Current bid</th><th></th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section class="section" id="how">
+    <div class="section-head">
+      <h2>How it works.</h2>
+      <p>Same job as a laptop lid auction. Bigger object. More highway.</p>
+    </div>
+    <div class="steps">
+      <div class="step"><div class="step-n">01</div><h3>Pick your spot</h3><p>Eight zones on the hood, trunk, doors, and bumpers. Two sizes. Click a panel on the car to see exactly how your logo will sit.</p></div>
+      <div class="step"><div class="step-n">02</div><h3>Win the bid</h3><p>Top bid when the clock hits zero wins. A 20% deposit holds it. Get outbid and the deposit comes straight back.</p></div>
+      <div class="step"><div class="step-n">03</div><h3>Your logo rides along</h3><p>Die cut vinyl on the car, a linked listing on this page, and whatever frames Robert posts from the road.</p></div>
+    </div>
+  </section>
+
+  <!-- WHAT YOU GET -->
+  <section class="section split" id="value">
+    <div>
+      <h2>What the money buys.</h2>
+      <p class="lede">Not a new car. The car is already his. You buy the rolling billboard and the feed it shows up in.</p>
+      <div class="panel-eyebrow">You get</div>
+      <ul class="checks">
+        <li>A quality die cut vinyl of your logo on a white 2018 Model 3</li>
+        <li>A linked listing on this page for the life of the auction and after</li>
+        <li>The car in Robert Scoble's daily FSD miles. Bay Area, conferences, Superchargers</li>
+        <li>A real chance to appear in @Scobleizer photos and videos. No promised impression counts</li>
+      </ul>
+    </div>
+    <div class="spec-card">
+      <div class="panel-eyebrow">The machine</div>
+      <dl class="specs">
+        <dt>Car</dt><dd>2018 Tesla Model 3</dd>
+        <dt>Color</dt><dd>Pearl white</dd>
+        <dt>Home</dt><dd>Bay Area</dd>
+        <dt>Driver</dt><dd>Robert Scoble</dd>
+        <dt>Computer</dt><dd>Hardware 3 FSD</dd>
+        <dt>Vinyl</dt><dd>Die cut, removable, no paint damage</dd>
+      </dl>
+    </div>
+  </section>
+
+  <!-- JOIN -->
+  <section class="section join" id="join">
+    <div class="join-inner">
+      <div>
+        <p class="eyebrow">Coming next</p>
+        <h2>Put <em>your</em> Tesla on the block.</h2>
+        <p class="lede">This auction is for one car. The next version lets any Tesla owner list their panels, set floors, and run their own auction on the same page. Leave your details and you'll be first in.</p>
+      </div>
+      <form class="join-form" id="join-form">
+        <input type="text" name="name" placeholder="Your name" required>
+        <input type="email" name="email" placeholder="Email" required>
+        <input type="text" name="car" placeholder="Car, e.g. 2023 Model Y, red">
+        <input type="text" name="city" placeholder="City">
+        <button class="btn btn-dark" type="submit">Join the waitlist</button>
+        <p class="small" id="join-msg"></p>
+      </form>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="section" id="faq">
+    <div class="section-head"><h2>Questions.</h2></div>
+    <div class="faq">
+      <details open><summary>Is this real?</summary><p>Yes. The Model 3 is real, the vinyl is real, and Robert actually drives it. The only stretch is treating a car like premium ad inventory, which is the point.</p></details>
+      <details><summary>Why this car?</summary><p>Because it goes where the tech industry goes. Robert drives it to conferences, meetups, and Supercharger stops all over the Bay Area, and he films from it constantly. It's the most photographed car in his feed.</p></details>
+      <details><summary>What do I actually get?</summary><p>A die cut vinyl of your logo on the panel you won, sized to the spot. A linked listing on this page. And the car in Robert's daily miles and content. We don't promise impression counts, we promise the car is out there.</p></details>
+      <details><summary>How does payment work?</summary><p>A 20% deposit holds your bid. When the auction closes, winners pay the balance by invoice within seven days. Get outbid and your deposit is refunded right away.</p></details>
+      <details><summary>What if someone outbids me?</summary><p>You get an email and can raise. Minimum raise is $50. Bids placed in the last ten minutes extend the clock by ten minutes so nobody gets sniped.</p></details>
+      <details><summary>Can any brand join?</summary><p>Almost. No politics, no adult content, no crypto pump schemes, nothing that would embarrass the driver. Robert has final say and will refund any bid he declines.</p></details>
+      <details><summary>Will my logo look like the preview?</summary><p>Very close. The previews on this page map your file onto the actual panel geometry from six angles. The vinyl shop cuts from the same file at the listed dimensions.</p></details>
+      <details><summary>Why not just buy ads?</summary><p>You can. This is cheaper, funnier, and it lives in the real world. It also rides in a feed that ad buys can't reach.</p></details>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <span>© 2026 Unaligned. Not affiliated with Tesla, Inc.</span>
+  <span><a href="https://x.com/Scobleizer" target="_blank" rel="noopener">@Scobleizer</a></span>
+</footer>
+
+<!-- BID MODAL -->
+<div class="modal" id="bid-modal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="bid-title">
+    <button class="modal-x" type="button" id="bid-close" aria-label="Close">×</button>
+    <div class="panel-eyebrow">Place a bid</div>
+    <h3 id="bid-title">Hood</h3>
+    <p class="small" id="bid-sub"></p>
+    <form id="bid-form">
+      <label>Your bid (USD)<input type="number" name="amount" id="bid-amount" min="0" step="50" required></label>
+      <label>Company or brand<input type="text" name="company" required maxlength="40" placeholder="Acme"></label>
+      <label>Your name<input type="text" name="name" required maxlength="60"></label>
+      <label>Email<input type="email" name="email" required></label>
+      <label>Logo (PNG or SVG, optional)<input type="file" name="logo" id="bid-logo" accept="image/png,image/svg+xml,image/jpeg,image/webp"></label>
+      <p class="small">Placing a bid holds the spot with a 20% deposit invoice. Refunded if you're outbid.</p>
+      <button class="btn btn-dark" type="submit">Place bid</button>
+    </form>
+  </div>
+</div>
+
+<script src="quads.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
