@@ -501,6 +501,16 @@
   const endDrag = () => { drag = null; frame.classList.remove('dragging'); };
   frame.addEventListener('pointerup', endDrag); frame.addEventListener('pointercancel', endDrag); frame.addEventListener('pointerleave', endDrag);
 
+  const showDrop = on => { frame.classList.toggle('dropping', on); };
+  frame.addEventListener('dragenter', e => { if (e.dataTransfer && [...e.dataTransfer.types].includes('Files')) { e.preventDefault(); showDrop(true); } });
+  frame.addEventListener('dragover', e => { if (e.dataTransfer && [...e.dataTransfer.types].includes('Files')) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; showDrop(true); } });
+  frame.addEventListener('dragleave', e => { if (!frame.contains(e.relatedTarget)) showDrop(false); });
+  frame.addEventListener('drop', e => {
+    e.preventDefault(); showDrop(false);
+    const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (file) ingestFile(file);
+  });
+
   let turntableT = null;
   const turntableBtn = document.getElementById('turntable');
   function stopTurntable() { if (turntableT) { clearInterval(turntableT); turntableT = null; turntableBtn.setAttribute('aria-pressed', 'false'); } }
@@ -509,6 +519,16 @@
     turntableBtn.setAttribute('aria-pressed', 'true');
     turn(1); turntableT = setInterval(() => turn(1), 2600);
   });
+  function spinOnce() {
+    stopTurntable();
+    let n = 0;
+    turntableBtn.setAttribute('aria-pressed', 'true');
+    turn(1); n++;
+    turntableT = setInterval(() => {
+      turn(1); n++;
+      if (n >= VIEWS.length) stopTurntable();
+    }, 1400);
+  }
 
   document.getElementById('toggle-demo').addEventListener('change', e => { state.demo = e.target.checked; renderFrame(); });
 
@@ -517,7 +537,17 @@
   function openSheet() { sheet.classList.add('open'); }
   function closeSheet() { sheet.classList.remove('open'); }
   document.getElementById('sheet-close').addEventListener('click', closeSheet);
-  document.getElementById('hud-logo').addEventListener('click', () => { openSheet(); setTimeout(() => document.getElementById('logo-input').closest('label').focus(), 50); });
+  function openLogoSheet() {
+    const pulse = document.getElementById('hud-logo');
+    if (pulse) pulse.classList.remove('hud-pulse');
+    openSheet();
+    setTimeout(() => document.getElementById('logo-input').closest('label').focus(), 50);
+  }
+  document.getElementById('hud-logo').addEventListener('click', openLogoSheet);
+  const heroLogo = document.getElementById('hero-logo');
+  if (heroLogo) heroLogo.addEventListener('click', openLogoSheet);
+  const closeBidBtn = document.getElementById('close-bid');
+  if (closeBidBtn) closeBidBtn.addEventListener('click', () => openBid(state.selected));
 
   function selectSpot(id, jumpView) {
     state.selected = id;
@@ -595,11 +625,17 @@
   function renderStats() {
     const held = SPOTS.filter(s => bids[s.id]);
     const raised = held.reduce((a, s) => a + bids[s.id].amount, 0);
-    countUp(document.getElementById('stat-raised'), raised, money);
-    countUp(document.getElementById('stat-taken'), held.length, n => String(n));
+    const open = SPOTS.length - held.length;
+    const openEl = document.getElementById('stat-open');
+    if (openEl) countUp(openEl, open, n => String(n));
+    const fromEl = document.getElementById('stat-from');
+    if (fromEl) {
+      const floors = SPOTS.filter(s => !bids[s.id]).map(s => s.floor);
+      fromEl.textContent = money(floors.length ? Math.min(...floors) : 0);
+    }
     const track = document.getElementById('ticker-track');
     const items = SPOTS.map(s => { const b = topBid(s.id); return `<span><i class="${b ? 'held' : ''}"></i>${s.name} <b>${money(currentPrice(s.id))}</b>${b ? ' · ' + b.company : ''}</span>`; });
-    const lead = `<span><i class="held"></i><b>${money(raised)}</b> raised · ${held.length} of ${SPOTS.length} panels have bids</span>`;
+    const lead = `<span><i class="held"></i><b>${open}</b> of ${SPOTS.length} panels still open · floors from $500</span>`;
     track.innerHTML = [lead, ...items, lead, ...items].join('');
   }
   function tickCountdown() {
@@ -677,19 +713,32 @@
     };
     im.src = dataUrl;
   }
-  function applyPreviewLogo() {
+  function afterLogoIn() {
+    const pulse = document.getElementById('hud-logo');
+    if (pulse) pulse.classList.remove('hud-pulse');
+    toast('Your logo is on every open panel. Drag to turn.');
+    spinOnce();
+  }
+  function applyPreviewLogo(fresh) {
     if (!state.rawLogo) return;
     processLogo(state.rawLogo, state.rawType, state.cutout, (url, info) => {
       state.previewLogo = url; state.previewText = ''; document.getElementById('logo-text').value = '';
       document.getElementById('logo-note').textContent = info.note;
       renderFrame();
+      if (fresh) afterLogoIn();
     });
   }
-  document.getElementById('logo-input').addEventListener('change', e => {
-    readLogo(e.target.files[0], (url, type) => { state.rawLogo = url; state.rawType = type; applyPreviewLogo(); });
+  function ingestFile(file) {
+    if (!file || !/^image\//.test(file.type) && file.type !== 'image/svg+xml') return;
+    readLogo(file, (url, type) => { state.rawLogo = url; state.rawType = type; applyPreviewLogo(true); });
+  }
+  document.getElementById('logo-input').addEventListener('change', e => ingestFile(e.target.files[0]));
+  document.getElementById('logo-cutout').addEventListener('change', e => { state.cutout = e.target.checked; applyPreviewLogo(false); });
+  document.getElementById('logo-text').addEventListener('input', e => {
+    state.previewText = e.target.value.trim(); state.previewLogo = null; renderFrame();
+    const pulse = document.getElementById('hud-logo');
+    if (pulse && state.previewText) pulse.classList.remove('hud-pulse');
   });
-  document.getElementById('logo-cutout').addEventListener('change', e => { state.cutout = e.target.checked; applyPreviewLogo(); });
-  document.getElementById('logo-text').addEventListener('input', e => { state.previewText = e.target.value.trim(); state.previewLogo = null; renderFrame(); });
   document.getElementById('logo-clear').addEventListener('click', () => {
     state.previewLogo = null; state.rawLogo = null; state.previewText = ''; document.getElementById('logo-text').value = ''; document.getElementById('logo-input').value = '';
     document.getElementById('logo-note').textContent = ''; renderFrame();
@@ -706,10 +755,12 @@
     document.getElementById('bid-sub').textContent = `${s.cm} vinyl. ${b ? `${b.company} holds it at ${money(b.amount)}. Minimum raise is ${money(MIN_RAISE)}.` : `Floor is ${money(s.floor)}.`}`;
     const amt = document.getElementById('bid-amount');
     amt.min = minBid(bidSpot); amt.value = minBid(bidSpot);
+    const wrap = document.getElementById('bid-form-wrap'), done = document.getElementById('bid-done');
+    if (wrap) wrap.hidden = false; if (done) done.hidden = true;
     modal.hidden = false; requestAnimationFrame(() => modal.classList.add('open'));
     setTimeout(() => amt.focus(), 120);
   }
-  function closeBid() { modal.classList.remove('open'); setTimeout(() => { modal.hidden = true; bidForm.reset(); }, 220); }
+  function closeBid() { modal.classList.remove('open'); setTimeout(() => { modal.hidden = true; bidForm.reset(); const wrap = document.getElementById('bid-form-wrap'), done = document.getElementById('bid-done'); if (wrap) wrap.hidden = false; if (done) done.hidden = true; }, 220); }
   document.getElementById('bid-close').addEventListener('click', closeBid);
   document.getElementById('nav-bid').addEventListener('click', () => openBid(state.selected));
   modal.addEventListener('click', e => { if (e.target === modal) closeBid(); });
@@ -719,16 +770,37 @@
     const fd = new FormData(bidForm);
     const amount = Number(fd.get('amount'));
     if (amount < minBid(bidSpot)) { alert(`Minimum bid for this panel is ${money(minBid(bidSpot))}.`); return; }
+    const submitBtn = document.getElementById('bid-submit');
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Sending…'; }
     const commit = logo => {
-      bids[bidSpot] = { amount, company: String(fd.get('company')).trim(), name: String(fd.get('name')).trim(), email: String(fd.get('email')).trim(), logo: logo || null, at: Date.now() };
+      const company = String(fd.get('company')).trim();
+      const name = String(fd.get('name')).trim();
+      const email = String(fd.get('email')).trim();
+      bids[bidSpot] = { amount, company, name, email, logo: logo || null, at: Date.now() };
       store.save(bids);
-      closeBid();
-      selectSpot(bidSpot, true);
-      renderFrame(); renderCards(); renderSchematic(); renderStats();
+      sendLead({
+        _subject: `Brand My Tesla bid · ${spotById[bidSpot].name} · ${money(amount)}`,
+        kind: 'bid',
+        panel: spotById[bidSpot].name,
+        amount,
+        company, name, email,
+      }).finally(() => {
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Place bid'; }
+        const wrap = document.getElementById('bid-form-wrap'), done = document.getElementById('bid-done');
+        if (wrap) wrap.hidden = true;
+        if (done) {
+          done.hidden = false;
+          document.getElementById('bid-done-copy').textContent = `${company} is on the ${spotById[bidSpot].name} at ${money(amount)}. We'll email a 20% deposit invoice to ${email} to hold it.`;
+        } else closeBid();
+        selectSpot(bidSpot, true);
+        renderFrame(); renderCards(); renderSchematic(); renderStats();
+      });
     };
     const file = document.getElementById('bid-logo').files[0];
     if (file) readLogo(file, (url, type) => processLogo(url, type, true, commit)); else commit(null);
   });
+  const bidDoneClose = document.getElementById('bid-done-close');
+  if (bidDoneClose) bidDoneClose.addEventListener('click', closeBid);
 
   /* ---------- Waitlist ---------- */
   document.getElementById('join-form').addEventListener('submit', e => {
@@ -738,6 +810,7 @@
       const list = JSON.parse(localStorage.getItem('bmt-waitlist') || '[]'); list.push({ ...fd, at: Date.now() });
       localStorage.setItem('bmt-waitlist', JSON.stringify(list));
     } catch {}
+    sendLead({ _subject: 'Brand My Tesla waitlist', kind: 'waitlist', ...fd });
     document.getElementById('join-msg').textContent = `Thanks ${fd.name.split(' ')[0]}. You're on the list.`;
     e.target.reset();
   });
@@ -798,6 +871,69 @@
     state.demo = false;
   }
   window.__bmt = { VIEWS, state, renderFrame, frame, setView, selectSpot, stickerCache, meshOf, normPlacement, surface, basisToPoints, multmv };
+
+  /* ---------- Toast, leads, save, share ---------- */
+  const LEAD_TO = 'https://formsubmit.co/ajax/asherunaligned@gmail.com';
+  function sendLead(fields) {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 8000);
+    return fetch(LEAD_TO, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ _captcha: 'false', _template: 'table', ...fields }),
+      signal: ctrl.signal,
+    }).catch(() => {}).finally(() => clearTimeout(t));
+  }
+  let toastT;
+  function toast(msg) {
+    const el = document.getElementById('toast');
+    if (!el) return;
+    el.hidden = false; el.textContent = msg;
+    requestAnimationFrame(() => el.classList.add('show'));
+    clearTimeout(toastT);
+    toastT = setTimeout(() => { el.classList.remove('show'); setTimeout(() => { if (!el.classList.contains('show')) el.hidden = true; }, 280); }, 2600);
+  }
+  function shotCanvas() {
+    const view = viewById[state.view];
+    const img = frame.querySelector('.car-img.active');
+    const vin = frame.querySelector('.car-vinyl');
+    const c = document.createElement('canvas'); c.width = IMG_W; c.height = IMG_H;
+    const ctx = c.getContext('2d');
+    if (view.flip) { ctx.translate(IMG_W, 0); ctx.scale(-1, 1); }
+    if (img && img.naturalWidth) ctx.drawImage(img, 0, 0, IMG_W, IMG_H);
+    if (view.flip) ctx.setTransform(1, 0, 0, 1, 0, 0);
+    if (vin && vin.width) ctx.drawImage(vin, 0, 0, IMG_W, IMG_H);
+    return c;
+  }
+  async function downloadShot() {
+    const c = shotCanvas();
+    const a = document.createElement('a');
+    a.download = 'brand-my-tesla.png';
+    a.href = c.toDataURL('image/png');
+    a.click();
+    toast('Saved this view');
+  }
+  async function sharePreview() {
+    const u = new URL(location.href.split('?')[0]);
+    if (state.previewText) u.searchParams.set('text', state.previewText);
+    u.searchParams.set('view', state.view);
+    if (state.selected) u.searchParams.set('spot', state.selected);
+    const url = u.toString();
+    try {
+      const blob = await new Promise(res => shotCanvas().toBlob(res, 'image/png'));
+      const file = blob ? new File([blob], 'brand-my-tesla.png', { type: 'image/png' }) : null;
+      if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ title: 'Brand My Tesla', text: 'My logo on Scoble\'s Model 3', files: [file], url });
+        return;
+      }
+    } catch {}
+    try { await navigator.clipboard.writeText(url); toast(state.previewLogo ? 'Link copied. Your file stays in this browser — type the name to share a preview.' : 'Link copied'); }
+    catch { toast(url); }
+  }
+  const shotBtn = document.getElementById('hud-shot');
+  const shareBtn = document.getElementById('hud-share');
+  if (shotBtn) shotBtn.addEventListener('click', downloadShot);
+  if (shareBtn) shareBtn.addEventListener('click', sharePreview);
 
   /* ---------- Boot ---------- */
   const qs = new URLSearchParams(location.search);
