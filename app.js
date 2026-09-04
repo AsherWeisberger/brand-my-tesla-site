@@ -163,8 +163,8 @@
     const c = stickerCanvas(ratio), ctx = c.getContext('2d'), W = c.width, H = c.artH;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = color;
     const fontOf = s => `${opts.style || ''} ${opts.weight || 700} ${s}px ${opts.family || SANS}`;
-    let size = fitFontSize(ctx, text, fontOf, W * 0.9, H * (opts.cap || 0.66));
-    if (opts.spacing) { ctx.font = fontOf(size); const w = ctx.measureText(text).width + size * opts.spacing * (text.length - 1); if (w > W * 0.9) size *= (W * 0.9) / w; }
+    let size = fitFontSize(ctx, text, fontOf, W * 0.78, H * (opts.cap || 0.66));
+    if (opts.spacing) { ctx.font = fontOf(size); const w = ctx.measureText(text).width + size * opts.spacing * (text.length - 1); if (w > W * 0.78) size *= (W * 0.78) / w; }
     ctx.font = fontOf(size);
     if (opts.spacing) spaced(ctx, text, W / 2, H / 2, size * opts.spacing); else ctx.fillText(text, W / 2, H / 2);
     return c;
@@ -181,14 +181,14 @@
     'door-fr': r => textSticker('Lumen', r, '#145a3a', { family: SERIF, style: 'italic', weight: 400, cap: 0.95 }),
     'door-rl': r => { const c = stickerCanvas(r), x = c.getContext('2d'), H = c.artH; x.fillStyle = x.strokeStyle = '#1f5fd6';
                  x.textAlign = 'left'; x.textBaseline = 'middle';
-                 const size = fitFontSize(x, 'orbit', s => `700 ${s}px ${SANS}`, c.width * 0.6, H * 0.72); x.font = `700 ${size}px ${SANS}`;
+                 const size = fitFontSize(x, 'orbit', s => `700 ${s}px ${SANS}`, c.width * 0.5, H * 0.58); x.font = `700 ${size}px ${SANS}`;
                  const tw = x.measureText('orbit').width, R = size * 0.34, total = tw + R * 2.6 + size * 0.2, x0 = (c.width - total) / 2;
                  x.lineWidth = R * 0.4; x.beginPath(); x.arc(x0 + R, H / 2, R, 0, Math.PI * 2); x.stroke();
                  x.beginPath(); x.arc(x0 + R * 2.05, H / 2, R * 0.28, 0, Math.PI * 2); x.fill();
                  x.fillText('orbit', x0 + R * 2.6 + size * 0.2, H / 2 + size * 0.04); return c; },
     'door-rr': r => { const c = stickerCanvas(r), x = c.getContext('2d'), H = c.artH; x.fillStyle = '#141311';
                  x.textAlign = 'left'; x.textBaseline = 'middle';
-                 const size = fitFontSize(x, 'hexa', s => `700 ${s}px ${SANS}`, c.width * 0.6, H * 0.72); x.font = `700 ${size}px ${SANS}`;
+                 const size = fitFontSize(x, 'hexa', s => `700 ${s}px ${SANS}`, c.width * 0.5, H * 0.58); x.font = `700 ${size}px ${SANS}`;
                  const tw = x.measureText('hexa').width, R = size * 0.42, total = tw + R * 2 + size * 0.22, x0 = (c.width - total) / 2, cx = x0 + R, cy = H / 2;
                  x.beginPath(); for (let k = 0; k < 6; k++) { const an = Math.PI / 6 + k * Math.PI / 3; x[k ? 'lineTo' : 'moveTo'](cx + R * Math.cos(an), cy + R * Math.sin(an)); } x.closePath(); x.fill();
                  x.fillText('hexa', x0 + R * 2 + size * 0.22, H / 2 + size * 0.04); return c; },
