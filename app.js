@@ -28,21 +28,15 @@
     { id: 'front34', label: 'Front ¾', src: 'cars/hero-34.jpg', quads: Q.front34 },
     { id: 'front', label: 'Front', src: 'cars/front.jpg', quads: Q.front },
     { id: 'side-l', label: 'Driver side', src: 'cars/side.jpg', quads: Q['side-l'] },
-    { id: 'side-r', label: 'Passenger side', src: 'cars/side.jpg', flip: true, quads: mirrorQuads(Q['side-l'], { 'door-fl': 'door-fr', 'door-rl': 'door-rr' }) },
+    { id: 'side-r', label: 'Passenger side', src: 'cars/side.jpg', flip: true, quads: renameQuads(Q['side-l'], { 'door-fl': 'door-fr', 'door-rl': 'door-rr' }) },
     { id: 'rear34', label: 'Rear ¾', src: 'cars/rear-34.jpg', quads: Q.rear34 },
     { id: 'rear', label: 'Rear', src: 'cars/rear.jpg', quads: Q.rear },
   ];
   const viewById = Object.fromEntries(VIEWS.map(v => [v.id, v]));
 
-  function mirrorQuads(quads, rename) {
+  function renameQuads(quads, rename) {
     const out = {};
-    for (const [id, p] of Object.entries(quads)) {
-      const pl = normPlacement(p);
-      const m = pl.c.map(([x, y]) => [IMG_W - x, y]);
-      const mb = pl.bow.map(([dx, dy]) => [-dx, dy]);
-      // viewer-facing order after a horizontal flip: TL'=mirror(TR), TR'=mirror(TL), BR'=mirror(BL), BL'=mirror(BR); left/right bows swap
-      out[rename[id] || id] = { c: [m[1], m[0], m[3], m[2]], bow: [mb[0], mb[3], mb[2], mb[1]], wrap: pl.wrap };
-    }
+    for (const [id, p] of Object.entries(quads)) out[rename[id] || id] = p;
     return out;
   }
 
@@ -239,10 +233,11 @@
     ctx.drawImage(img, 0, 0);
     ctx.restore();
   }
-  function drawMesh(ctx, img, grid, k) {
+  function drawMesh(ctx, img, grid, k, flipU) {
     const sw = img.width, sh = img.artH || img.height;
     for (let j = 0; j < NV; j++) for (let i = 0; i < NU; i++) {
-      const sx0 = i / NU * sw, sx1 = (i + 1) / NU * sw, sy0 = j / NV * sh, sy1 = (j + 1) / NV * sh;
+      const u0 = flipU ? 1 - i / NU : i / NU, u1 = flipU ? 1 - (i + 1) / NU : (i + 1) / NU;
+      const sx0 = u0 * sw, sx1 = u1 * sw, sy0 = j / NV * sh, sy1 = (j + 1) / NV * sh;
       const d = p => [p[0] * k, p[1] * k];
       const d00 = d(grid[j][i]), d10 = d(grid[j][i + 1]), d01 = d(grid[j + 1][i]), d11 = d(grid[j + 1][i + 1]);
       drawTri(ctx, img, [sx0, sy0], [sx1, sy0], [sx1, sy1], d00, d10, d11);
@@ -315,11 +310,11 @@
     }
     gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, g.paintTex[src]); gl.activeTexture(gl.TEXTURE0);
   }
-  function glDrawMesh(g, img, grid) {
+  function glDrawMesh(g, img, grid, flipU) {
     const gl = g.gl, pos = [], uv = [], vmax = (img.artH || img.height) / img.height;
     const P = p => [p[0] / IMG_W * 2 - 1, 1 - p[1] / IMG_H * 2];
     for (let j = 0; j < NV; j++) for (let i = 0; i < NU; i++) {
-      const u0 = i / NU, u1 = (i + 1) / NU, v0 = j / NV * vmax, v1 = (j + 1) / NV * vmax;
+      const u0 = flipU ? 1 - i / NU : i / NU, u1 = flipU ? 1 - (i + 1) / NU : (i + 1) / NU, v0 = j / NV * vmax, v1 = (j + 1) / NV * vmax;
       const d00 = P(grid[j][i]), d10 = P(grid[j][i + 1]), d01 = P(grid[j + 1][i]), d11 = P(grid[j + 1][i + 1]);
       pos.push(...d00, ...d10, ...d11, ...d00, ...d11, ...d01);
       uv.push(u0, v0, u1, v0, u1, v1, u0, v0, u1, v1, u0, v1);
@@ -382,14 +377,14 @@
     if (g) {
       const paintImg = await loadImage(src); if (frame.dataset.seq !== String(seq)) return;
       glPaint(g, paintImg, src);
-      g.gl.uniform2f(g.uRes, vw, vh); g.gl.uniform1f(g.uFlip, view.flip ? 1 : 0);
+      g.gl.uniform2f(g.uRes, vw, vh); g.gl.uniform1f(g.uFlip, 0);
       g.gl.viewport(0, 0, vw, vh); g.gl.clearColor(0, 0, 0, 0); g.gl.clear(g.gl.COLOR_BUFFER_BIT);
     } else { vc = vin.getContext('2d'); vc.imageSmoothingQuality = 'high'; }
     const uc = ui.getContext('2d');
     placements.forEach(({ spot, pl }, n) => {
       const st = stickers[n]; if (!st || !st.canvas) return;
       const grid = meshOf(pl);
-      if (g) glDrawMesh(g, st.canvas, grid); else drawMesh(vc, st.canvas, grid, vw / IMG_W);
+      if (g) glDrawMesh(g, st.canvas, grid, !!view.flip); else drawMesh(vc, st.canvas, grid, vw / IMG_W, !!view.flip);
       if (st.kind === 'ghost') {
         tracePath(uc, outlineOf(grid), k);
         uc.fillStyle = 'rgba(255,255,255,.22)'; uc.fill();

@@ -94,7 +94,10 @@ p { margin: 0; }
 .car-frame:focus-visible::before { content: ""; position: absolute; inset: 8px; border-radius: 16px; box-shadow: 0 0 0 3px rgba(0,113,227,.45); pointer-events: none; z-index: 5; }
 .car-img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; object-fit: cover; pointer-events: none; opacity: 0; transition: opacity .55s var(--ease); }
 .car-img.active { opacity: 1; }
-.car-frame.flip .car-img { transform: scaleX(-1); }
+.car-frame.flip .car-img,
+.car-frame.flip .paint-layers,
+.car-frame.flip .car-hits,
+.car-frame.flip .pins { transform: scaleX(-1); }
 .paint-layers { position: absolute; inset: 0; transition: opacity .3s var(--ease); }
 .paint-layers.fading { opacity: 0; transition: opacity .15s; }
 .car-vinyl, .car-ui { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }

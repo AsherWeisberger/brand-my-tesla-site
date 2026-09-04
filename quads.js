@@ -2,8 +2,7 @@
 // c: four corners [TL, TR, BR, BL]
 // bow: displacement of each edge midpoint [top, right, bottom, left], bends the edges over the panel
 // wrap: [across, along] cylinder wrap angle in degrees, compresses the far ends like vinyl over a curve
-// Quads stay inset from panel cuts so artwork cannot spill onto a neighbor.
-// Passenger side is mirrored from side-l at runtime. Tune with ?calib=1 on the site.
+// Passenger side reuses side-l; the photo and vinyl flip together in CSS. Tune with ?calib=1.
 const BMT_QUADS = {
   "front34": {
     "hood":     {"c": [[540, 450], [888, 446], [745, 502], [468, 520]], "bow": [[0, -4], [-3, -2], [0, -3], [2, -2]], "wrap": [16, 14]},
