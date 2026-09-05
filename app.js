@@ -14,7 +14,7 @@
     { id: 'trunk',    name: 'Trunk lid',           where: 'Center of the trunk, under the badge', size: 'Large',  cm: '50 × 15 cm', in: '19.7 × 5.9 in',  floor: 1000, ratio: 50 / 15, view: 'rear' },
     { id: 'door-fl',  name: 'Driver door',         where: 'Front door, driver side',              size: 'Large',  cm: '60 × 30 cm', in: '23.6 × 11.8 in', floor: 750,  ratio: 2,       view: 'side-l' },
     { id: 'door-fr',  name: 'Passenger door',      where: 'Front door, passenger side',           size: 'Large',  cm: '60 × 30 cm', in: '23.6 × 11.8 in', floor: 750,  ratio: 2,       view: 'front34' },
-    { id: 'door-rl',  name: 'Driver rear door',    where: 'Rear door, driver side',               size: 'Medium', cm: '45 × 22 cm', in: '17.7 × 8.7 in',  floor: 500,  ratio: 2,       view: 'rear34' },
+    { id: 'door-rl',  name: 'Driver rear door',    where: 'Rear door, driver side',               size: 'Medium', cm: '45 × 22 cm', in: '17.7 × 8.7 in',  floor: 500,  ratio: 2,       view: 'side-l' },
     { id: 'door-rr',  name: 'Passenger rear door', where: 'Rear door, passenger side',            size: 'Medium', cm: '45 × 22 cm', in: '17.7 × 8.7 in',  floor: 500,  ratio: 2,       view: 'side-r' },
     { id: 'bumper-f', name: 'Front bumper',        where: 'Across the front fascia',              size: 'Medium', cm: '60 × 15 cm', in: '23.6 × 5.9 in',  floor: 750,  ratio: 4,       view: 'front' },
     { id: 'bumper-r', name: 'Rear bumper',         where: 'Across the rear fascia',               size: 'Medium', cm: '60 × 15 cm', in: '23.6 × 5.9 in',  floor: 750,  ratio: 4,       view: 'rear' },
@@ -81,8 +81,9 @@
     save(bids) { try { localStorage.setItem(this.key, JSON.stringify(bids)); } catch {} },
   };
   let bids = store.load(); // { spotId: { amount, company, name, email, logo, at } }
-  const state = { view: 'front34', selected: null, previewLogo: null, rawLogo: null, rawType: '', previewText: '', demo: true, cutout: true, carState: null };
+  const state = { view: 'front34', selected: 'hood', previewLogo: null, rawLogo: null, rawType: '', previewText: '', demo: true, cutout: false, carState: null };
 
+  const escapeHTML = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const money = n => '$' + Math.round(n).toLocaleString('en-US');
   const topBid = id => bids[id] || null;
   const currentPrice = id => (bids[id] ? bids[id].amount : spotById[id].floor);
@@ -164,22 +165,22 @@
     return c;
   }
   const MARKS = {
-    hood:      r => textSticker('ACME', r, '#141311', { cap: 0.8 }),
-    trunk:     r => { const c = stickerCanvas(r), x = c.getContext('2d'), H = c.artH; x.fillStyle = '#1f2a5a';
+    hood:      r => textSticker('YOUR BRAND', r, '#202323', { cap: 0.8 }),
+    trunk:     r => { const c = stickerCanvas(r), x = c.getContext('2d'), H = c.artH; x.fillStyle = '#263b68';
                  x.textAlign = 'left'; x.textBaseline = 'middle';
-                 const size = fitFontSize(x, 'northwind', s => `700 ${s}px ${SANS}`, c.width * 0.72, H * 0.7); x.font = `700 ${size}px ${SANS}`;
-                 const tw = x.measureText('northwind').width, mark = size * 0.7, total = tw + mark + size * 0.25, x0 = (c.width - total) / 2;
+                 const size = fitFontSize(x, 'northwind', s => `700 ${s}px ${SANS}`, c.width * 0.70, H * 0.55); x.font = `700 ${size}px ${SANS}`;
+                 const tw = x.measureText('northwind').width, mark = size * 0.62, total = tw + mark + size * 0.24, x0 = (c.width - total) / 2;
                  x.beginPath(); x.moveTo(x0, H / 2 + mark / 2); x.lineTo(x0 + mark / 2, H / 2 - mark / 2); x.lineTo(x0 + mark, H / 2 + mark / 2); x.closePath(); x.fill();
                  x.fillText('northwind', x0 + mark + size * 0.25, H / 2 + size * 0.04); return c; },
-    'door-fl': r => textSticker('KESTREL', r, '#c8341b', { weight: 600, spacing: 0.22, cap: 0.5 }),
+    'door-fl': r => textSticker('KESTREL', r, '#b83d2c', { weight: 650, spacing: 0.10, cap: 0.42 }),
     'door-fr': r => textSticker('Lumen', r, '#145a3a', { family: SERIF, style: 'italic', weight: 400, cap: 0.95 }),
-    'door-rl': r => { const c = stickerCanvas(r), x = c.getContext('2d'), H = c.artH; x.fillStyle = x.strokeStyle = '#1f5fd6';
+    'door-rl': r => { const c = stickerCanvas(r), x = c.getContext('2d'), H = c.artH; x.fillStyle = x.strokeStyle = '#275db6';
                  x.textAlign = 'left'; x.textBaseline = 'middle';
-                 const size = fitFontSize(x, 'orbit', s => `700 ${s}px ${SANS}`, c.width * 0.5, H * 0.58); x.font = `700 ${size}px ${SANS}`;
-                 const tw = x.measureText('orbit').width, R = size * 0.34, total = tw + R * 2.6 + size * 0.2, x0 = (c.width - total) / 2;
-                 x.lineWidth = R * 0.4; x.beginPath(); x.arc(x0 + R, H / 2, R, 0, Math.PI * 2); x.stroke();
-                 x.beginPath(); x.arc(x0 + R * 2.05, H / 2, R * 0.28, 0, Math.PI * 2); x.fill();
-                 x.fillText('orbit', x0 + R * 2.6 + size * 0.2, H / 2 + size * 0.04); return c; },
+                 const size = fitFontSize(x, 'ORBIT', s => `700 ${s}px ${SANS}`, c.width * 0.68, H * 0.58); x.font = `700 ${size}px ${SANS}`;
+                 const tw = x.measureText('ORBIT').width, R = size * 0.32, total = tw + R * 2.25 + size * 0.24, x0 = (c.width - total) / 2;
+                 x.lineWidth = R * 0.34; x.beginPath(); x.arc(x0 + R, H / 2, R, 0, Math.PI * 2); x.stroke();
+                 x.beginPath(); x.arc(x0 + R * 1.95, H / 2, R * 0.25, 0, Math.PI * 2); x.fill();
+                 x.fillText('ORBIT', x0 + R * 2.25 + size * 0.24, H / 2 + size * 0.04); return c; },
     'door-rr': r => { const c = stickerCanvas(r), x = c.getContext('2d'), H = c.artH; x.fillStyle = '#141311';
                  x.textAlign = 'left'; x.textBaseline = 'middle';
                  const size = fitFontSize(x, 'hexa', s => `700 ${s}px ${SANS}`, c.width * 0.5, H * 0.58); x.font = `700 ${size}px ${SANS}`;
@@ -187,7 +188,7 @@
                  x.beginPath(); for (let k = 0; k < 6; k++) { const an = Math.PI / 6 + k * Math.PI / 3; x[k ? 'lineTo' : 'moveTo'](cx + R * Math.cos(an), cy + R * Math.sin(an)); } x.closePath(); x.fill();
                  x.fillText('hexa', x0 + R * 2 + size * 0.22, H / 2 + size * 0.04); return c; },
     'bumper-f': r => textSticker('PALM', r, '#7a4b2a', { spacing: 0.4, cap: 0.62 }),
-    'bumper-r': r => textSticker('Verde', r, '#2f7d3a', { family: SERIF, weight: 400, cap: 0.95 }),
+    'bumper-r': r => textSticker('Verde', r, '#2f7d3a', { family: SERIF, weight: 400, cap: 0.92 }),
   };
   async function imageSticker(src, ratio) {
     const im = await loadImage(src); if (!im) return null;
@@ -261,14 +262,14 @@
       precision mediump float; uniform sampler2D s; uniform sampler2D paint; uniform vec2 res; uniform float flip; varying vec2 v;
       float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
       void main(){
-        vec4 d = texture2D(s, v, 0.6);                       // decal (premultiplied), slight softness like a photo
+        vec4 d = texture2D(s, v, 0.15);                       // decal (premultiplied), slight softness like a photo
         vec2 pu = gl_FragCoord.xy / res; pu.y = 1.0 - pu.y; if (flip > 0.5) pu.x = 1.0 - pu.x;
         vec3 p = texture2D(paint, pu).rgb;
         float L = dot(p, vec3(0.299, 0.587, 0.114));
-        float shade = mix(0.55, 1.0, pow(L, 1.4));           // vinyl sits in the paint's shadows
-        float gloss = pow(smoothstep(0.80, 1.0, L), 2.0) * 0.55; // and catches its reflections
+        float shade = mix(0.68, 1.0, L);           // vinyl sits in the paint's shadows
+        float gloss = pow(smoothstep(0.88, 1.0, L), 3.0) * 0.12; // and catches its reflections
         vec3 c = d.rgb * shade + gloss * d.a * (0.35 + 0.65 * p);
-        float g = (hash(gl_FragCoord.xy) - 0.5) * 0.04 * d.a;
+        float g = (hash(gl_FragCoord.xy) - 0.5) * 0.012 * d.a;
         gl_FragColor = vec4(c + g, d.a);
       }`));
     gl.linkProgram(prog); gl.useProgram(prog);
@@ -358,6 +359,8 @@
   let renderSeq = 0;
   async function renderFrame() {
     const view = viewById[state.view];
+    frame.dataset.view = view.id;
+    document.getElementById('angle-label').textContent = `${String(VIEWS.indexOf(view) + 1).padStart(2, '0')} / ${view.label}`;
     frame.classList.toggle('flip', !!view.flip);
     const seq = ++renderSeq; frame.dataset.seq = seq;
     const vin = frame.querySelector('.car-vinyl'), ui = frame.querySelector('.car-ui');
@@ -376,6 +379,7 @@
     const src = currentSrc(view);
     if (g) {
       const paintImg = await loadImage(src); if (frame.dataset.seq !== String(seq)) return;
+      if (!paintImg) { toast('This camera angle could not load. Please try another angle.'); return; }
       glPaint(g, paintImg, src);
       g.gl.uniform2f(g.uRes, vw, vh); g.gl.uniform1f(g.uFlip, 0);
       g.gl.viewport(0, 0, vw, vh); g.gl.clearColor(0, 0, 0, 0); g.gl.clear(g.gl.COLOR_BUFFER_BIT);
@@ -424,7 +428,7 @@
       pin.className = 'pin' + (c[0] > IMG_W * 0.72 ? ' left' : '') + (state.selected === id ? ' selected' : '');
       pin.style.left = (c[0] / IMG_W * 100) + '%';
       pin.style.top = (Math.min(c[1], top[1] - 4) / IMG_H * 100) + '%';
-      pin.innerHTML = `<span class="dot"></span><span class="tag"><b>${s.name}</b><small>${b ? b.company + ' · ' : ''}${money(currentPrice(id))}</small></span>`;
+      pin.innerHTML = `<span class="dot"></span><span class="tag"><b>${s.name}</b><small>${b ? escapeHTML(b.company) + ' · ' : ''}${money(currentPrice(id))}</small></span>`;
       pin.setAttribute('aria-label', `${s.name}, ${money(currentPrice(id))}`);
       pin.addEventListener('click', e => { e.stopPropagation(); selectSpot(id, false); });
       pinsEl.appendChild(pin);
@@ -461,9 +465,11 @@
   function swapPhoto() {
     const view = viewById[state.view], src = currentSrc(view);
     const active = frame.querySelector('.car-img.active'), next = [...layers].find(l => l !== active);
-    if (active.getAttribute('src') === src) { renderFrame(); return; }
+    if (active.getAttribute('src') === src) { next.onload = null; renderFrame(); return; }
     paintLayers.classList.add('fading');
-    const go = () => { next.classList.add('active'); active.classList.remove('active'); renderFrame(); };
+    const requestedView = state.view;
+    const go = () => { if (state.view !== requestedView || currentSrc(viewById[state.view]) !== src) return; next.alt = `White Tesla Model 3, ${view.label.toLowerCase()} view`; next.classList.add('active'); active.classList.remove('active'); renderFrame(); };
+    next.onerror = () => { if (state.view === requestedView) { paintLayers.classList.remove('fading'); toast('Could not load this angle. Please try again.'); } };
     next.onload = go; next.src = src;
     if (next.complete && next.naturalWidth) go();
   }
@@ -529,6 +535,10 @@
 
   /* ---------- Selection + sheet ---------- */
   const sheet = document.getElementById('sheet'), sheetBody = document.getElementById('sheet-body');
+  const panelSelect = document.getElementById('panel-select');
+  for (const spot of SPOTS) { const option = document.createElement('option'); option.value = spot.id; option.textContent = spot.name; panelSelect.appendChild(option); }
+  panelSelect.value = state.selected;
+  panelSelect.addEventListener('change', e => { stopTurntable(); selectSpot(e.target.value, true); });
   function openSheet() { sheet.classList.add('open'); }
   function closeSheet() { sheet.classList.remove('open'); }
   document.getElementById('sheet-close').addEventListener('click', closeSheet);
@@ -536,7 +546,8 @@
     const pulse = document.getElementById('hud-logo');
     if (pulse) pulse.classList.remove('hud-pulse');
     openSheet();
-    setTimeout(() => document.getElementById('logo-input').closest('label').focus(), 50);
+    if (window.innerWidth <= 800) sheet.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(() => document.getElementById('logo-input').focus(), 50);
   }
   document.getElementById('hud-logo').addEventListener('click', openLogoSheet);
   const heroLogo = document.getElementById('hero-logo');
@@ -546,6 +557,7 @@
 
   function selectSpot(id, jumpView) {
     state.selected = id;
+    document.getElementById('panel-select').value = id;
     if (jumpView && !viewById[state.view].quads[id]) setView(spotById[id].view);
     const view = viewById[state.view];
     renderHits(view); renderPins(view);
@@ -558,18 +570,18 @@
     }
     const s = spotById[state.selected], b = topBid(s.id);
     sheetBody.innerHTML = `
-      <div class="sheet-eyebrow">${b ? 'Current bid' : 'Open at floor'}</div>
+      <div class="sheet-eyebrow">${b ? 'Your saved request' : 'Starting price'}</div>
       <div class="sheet-name">${s.name}</div>
       <div class="sheet-where">${s.where}</div>
-      ${b && b.logo ? `<img class="held-logo" src="${b.logo}" alt="${b.company}" style="margin-top:14px">` : ''}
+      ${b && b.logo ? `<img class="held-logo" src="${escapeHTML(b.logo)}" alt="${escapeHTML(b.company)}" style="margin-top:14px">` : ''}
       <div class="sheet-grid">
-        <div><div class="k">${b ? 'Top bid' : 'Floor'}</div><div class="v big">${money(currentPrice(s.id))}</div></div>
-        <div><div class="k">Held by</div><div class="v">${b ? b.company : 'Nobody yet'}</div></div>
+        <div><div class="k">${b ? 'Your request' : 'Starting at'}</div><div class="v big">${money(currentPrice(s.id))}</div></div>
+        <div><div class="k">Status</div><div class="v">${b ? escapeHTML(b.company) : 'By request'}</div></div>
         <div><div class="k">Vinyl size</div><div class="v">${s.cm}<br><span class="muted">${s.in}</span></div></div>
-        <div><div class="k">Next bid</div><div class="v">${money(minBid(s.id))}+</div></div>
+        <div><div class="k">Minimum request</div><div class="v">${money(minBid(s.id))}+</div></div>
       </div>
       <div class="sheet-actions">
-        <button class="btn btn-primary" type="button" data-bid>Bid ${money(minBid(s.id))}</button>
+        <button class="btn btn-primary" type="button" data-bid>Request this panel · ${money(minBid(s.id))}</button>
         <button class="btn btn-ghost" type="button" data-angle>Best angle</button>
       </div>`;
     sheetBody.querySelector('[data-bid]').addEventListener('click', () => openBid(s.id));
@@ -585,12 +597,12 @@
       const card = document.createElement('article');
       card.className = 'card' + (s.floor >= 1000 ? ' marquee' : '') + (state.selected === s.id ? ' selected' : '');
       card.innerHTML = `
-        <div class="card-top"><div><div class="card-name">${s.name}</div><div class="card-sub">${s.where}</div></div><span class="badge ${b ? 'live' : ''}">${b ? 'Bid live' : s.size}</span></div>
+        <div class="card-top"><div><div class="card-name">${s.name}</div><div class="card-sub">${s.where}</div></div><span class="badge ${b ? 'live' : ''}">${b ? 'Saved request' : s.size}</span></div>
         <div class="card-mid">
-          <div class="price">${money(currentPrice(s.id))}<small>${b ? '1 bid · next ' + money(minBid(s.id)) : 'floor · ' + s.cm}</small></div>
-          <div class="holder">${b ? (b.logo ? `<img src="${b.logo}" alt="">` : '') + `<span>${b.company}</span>` : '<span class="ph">+</span>'}</div>
+          <div class="price">${money(currentPrice(s.id))}<small>${b ? 'Your request · next ' + money(minBid(s.id)) : 'floor · ' + s.cm}</small></div>
+          <div class="holder">${b ? (b.logo ? `<img src="${escapeHTML(b.logo)}" alt="">` : '') + `<span>${escapeHTML(b.company)}</span>` : '<span class="ph">+</span>'}</div>
         </div>
-        <div class="card-actions"><button class="btn btn-primary btn-sm" type="button" data-bid>Bid</button><button class="btn btn-ghost btn-sm" type="button" data-view>View on car</button></div>`;
+        <div class="card-actions"><button class="btn btn-primary btn-sm" type="button" data-bid>Request panel</button><button class="btn btn-ghost btn-sm" type="button" data-view>View on car</button></div>`;
       card.querySelector('[data-bid]').addEventListener('click', e => { e.stopPropagation(); openBid(s.id); });
       card.querySelector('[data-view]').addEventListener('click', e => { e.stopPropagation(); goToSpot(s.id); });
       card.addEventListener('click', () => goToSpot(s.id));
@@ -629,16 +641,17 @@
       fromEl.textContent = money(floors.length ? Math.min(...floors) : 0);
     }
     const track = document.getElementById('ticker-track');
-    const items = SPOTS.map(s => { const b = topBid(s.id); return `<span><i class="${b ? 'held' : ''}"></i>${s.name} <b>${money(currentPrice(s.id))}</b>${b ? ' · ' + b.company : ''}</span>`; });
+    const items = SPOTS.map(s => { const b = topBid(s.id); return `<span><i class="${b ? 'held' : ''}"></i>${s.name} <b>${money(currentPrice(s.id))}</b>${b ? ' · ' + escapeHTML(b.company) : ''}</span>`; });
     const lead = `<span><i class="held"></i><b>${open}</b> of ${SPOTS.length} panels still open · floors from $500</span>`;
     track.innerHTML = [lead, ...items, lead, ...items].join('');
   }
   function tickCountdown() {
     const ms = CLOSES_AT - Date.now();
-    const els = [document.getElementById('countdown'), document.getElementById('nav-countdown')];
+    const els = [document.getElementById('countdown')];
+    document.getElementById('nav-countdown').textContent = 'Preview edition';
     let txt = 'Closed';
     if (ms > 0) { const d = Math.floor(ms / 864e5), h = Math.floor(ms % 864e5 / 36e5), m = Math.floor(ms % 36e5 / 6e4); txt = d > 0 ? `${d}d ${h}h` : `${h}h ${m}m`; }
-    els.forEach(el => { if (el) el.textContent = txt; });
+    els.forEach(el => { if (el) el.textContent = ms > 0 ? '30 Sep 2026' : 'To be announced'; });
   }
   tickCountdown(); setInterval(tickCountdown, 30000);
 
@@ -647,6 +660,7 @@
     if (!file) return;
     const fr = new FileReader();
     fr.onload = () => cb(fr.result, file.type);
+    fr.onerror = () => { toast('The file could not be read. Please choose it again.'); const btn = document.getElementById('bid-submit'); btn.disabled = false; btn.textContent = 'Send bid request'; };
     fr.readAsDataURL(file);
   }
   // Turns an uploaded logo into something a vinyl shop would cut for white paint:
@@ -706,13 +720,14 @@
       }
       cb(c.toDataURL('image/png'), { note });
     };
+    im.onerror = () => { toast('This image could not be read. Try a PNG or another file.'); const btn = document.getElementById('bid-submit'); btn.disabled = false; btn.textContent = 'Send bid request'; };
     im.src = dataUrl;
   }
   function afterLogoIn() {
     const pulse = document.getElementById('hud-logo');
     if (pulse) pulse.classList.remove('hud-pulse');
     toast('Your logo is on every open panel. Drag to turn.');
-    spinOnce();
+    stopTurntable();
   }
   function applyPreviewLogo(fresh) {
     if (!state.rawLogo) return;
@@ -724,7 +739,8 @@
     });
   }
   function ingestFile(file) {
-    if (!file || !/^image\//.test(file.type) && file.type !== 'image/svg+xml') return;
+    if (!file || !['image/png','image/jpeg','image/webp','image/svg+xml'].includes(file.type)) { toast('Choose a PNG, SVG, JPG or WebP image.'); return; }
+    if (file.size > 10 * 1024 * 1024) { toast('Please choose a logo smaller than 10 MB.'); return; }
     readLogo(file, (url, type) => { state.rawLogo = url; state.rawType = type; applyPreviewLogo(true); });
   }
   document.getElementById('logo-input').addEventListener('change', e => ingestFile(e.target.files[0]));
@@ -747,7 +763,7 @@
     bidSpot = id || state.selected || 'hood';
     const s = spotById[bidSpot], b = topBid(bidSpot);
     document.getElementById('bid-title').textContent = s.name;
-    document.getElementById('bid-sub').textContent = `${s.cm} vinyl. ${b ? `${b.company} holds it at ${money(b.amount)}. Minimum raise is ${money(MIN_RAISE)}.` : `Floor is ${money(s.floor)}.`}`;
+    document.getElementById('bid-sub').textContent = `${s.cm} vinyl. ${b ? `${escapeHTML(b.company)} holds it at ${money(b.amount)}. Minimum raise is ${money(MIN_RAISE)}.` : `Floor is ${money(s.floor)}.`}`;
     const amt = document.getElementById('bid-amount');
     amt.min = minBid(bidSpot); amt.value = minBid(bidSpot);
     const wrap = document.getElementById('bid-form-wrap'), done = document.getElementById('bid-done');
@@ -780,12 +796,12 @@
         amount,
         company, name, email,
       }).finally(() => {
-        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Place bid'; }
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Send bid request'; }
         const wrap = document.getElementById('bid-form-wrap'), done = document.getElementById('bid-done');
         if (wrap) wrap.hidden = true;
         if (done) {
           done.hidden = false;
-          document.getElementById('bid-done-copy').textContent = `${company} is on the ${spotById[bidSpot].name} at ${money(amount)}. We'll email a 20% deposit invoice to ${email} to hold it.`;
+          document.getElementById('bid-done-copy').textContent = `${company}'s request for the ${spotById[bidSpot].name} at ${money(amount)} is saved in this browser. We'll review it and email ${email} with availability and next steps.`;
         } else closeBid();
         selectSpot(bidSpot, true);
         renderFrame(); renderCards(); renderSchematic(); renderStats();
@@ -896,8 +912,12 @@
     const ctx = c.getContext('2d');
     if (view.flip) { ctx.translate(IMG_W, 0); ctx.scale(-1, 1); }
     if (img && img.naturalWidth) ctx.drawImage(img, 0, 0, IMG_W, IMG_H);
-    if (view.flip) ctx.setTransform(1, 0, 0, 1, 0, 0);
-    if (vin && vin.width) ctx.drawImage(vin, 0, 0, IMG_W, IMG_H);
+    if (vin && vin.width) {
+      ctx.globalCompositeOperation = vin.classList.contains('gl') ? 'source-over' : 'multiply';
+      ctx.drawImage(vin, 0, 0, IMG_W, IMG_H);
+    }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalCompositeOperation = 'source-over';
     return c;
   }
   async function downloadShot() {
@@ -943,8 +963,8 @@
     fetch(qs.get('logo')).then(r => r.blob()).then(b => readLogo(new File([b], 'logo', { type: b.type }), (url, type) => { state.rawLogo = url; state.rawType = type; applyPreviewLogo(); })).catch(() => {});
   }
   renderTabs(); renderSheet(); renderCards(); renderSchematic(); renderStats(); renderFrame();
-  if (state.selected) openSheet();
-  probeStates();
+  if (state.selected) { panelSelect.value = state.selected; openSheet(); }
+  // No alternate-state photos are supplied. Enable probeStates only when assets are installed.
   let resizeT;
   window.addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(renderFrame, 120); });
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { stickerCache.clear(); renderFrame(); });
