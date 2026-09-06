@@ -12,7 +12,9 @@ const BMT_QUADS = {
     "bumper-f": {"c": [[387,599],[533,601],[533,641],[387,635]], "bow": [[0,-2],[1,0],[0,2],[-2,0]], "wrap": [22,5]}
   },
   "front": {
-    "hood": {"c": [[703,447],[1089,447],[1050,529],[742,529]], "bow": [[0,-4],[2,-1],[0,4],[-2,-1]], "wrap": [16,14]},
+    // A rectangular vinyl patch, with nearly parallel sides and a gentle hood crown.
+    // The nearer edge widens slightly with perspective instead of tapering to the nose.
+    "hood": {"c": [[713,447],[1079,447],[1083,529],[709,529]], "bow": [[0,-2],[0,0],[0,2],[0,0]], "wrap": [4,4]},
     "bumper-f": {"c": [[723,610],[1041,610],[1045,660],[719,660]], "bow": [[0,-5],[1,0],[0,-3],[-1,0]], "wrap": [18,4]}
   },
   "side-l": {
