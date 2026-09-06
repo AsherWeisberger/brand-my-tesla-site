@@ -101,7 +101,7 @@ p { margin: 0; }
 .paint-layers { position: absolute; inset: 0; transition: opacity .3s var(--ease); }
 .paint-layers.fading { opacity: 0; transition: opacity .15s; }
 .car-vinyl, .car-ui { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-.car-vinyl { mix-blend-mode: multiply; }
+.car-vinyl { mix-blend-mode: normal; }
 .car-vinyl.gl { mix-blend-mode: normal; }
 .frame-vignette { position: absolute; inset: -2px; pointer-events: none; z-index: 2; box-shadow: inset 0 -60px 60px -30px rgba(184,175,169,.55); }
 

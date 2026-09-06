@@ -1,6 +1,6 @@
 # Brand My Tesla
 
-Auction site for vinyl ad placements on Robert Scoble's white 2018 Tesla Model 3.
+Auction site for vinyl ad placements on Robert Scoble's Deep Blue Metallic 2018 Tesla Model 3.
 Static site, no build step. Open `index.html` or serve the folder.
 
 ## How the car renderings work
@@ -15,9 +15,8 @@ panels with code:
 - `app.js` builds a curved mesh from that (homography for the corners, then bow and wrap on top) and
   draws the logo through it triangle by triangle on a canvas, so text baselines arc over the hood
   crown, bumper corners, and trunk lid instead of sitting like a flat sticker. The canvas uses
-  `mix-blend-mode: multiply` so the paint's shading and reflections show through like real vinyl.
-- Uploaded logos are cleaned first: a flat background is cut away, and a dark background is inverted so
-  the mark reads as dark vinyl on white paint. Turn that off with the checkbox under the upload button.
+  normal alpha blending so the paint's shading and reflections show through like real vinyl.
+- Uploaded logos are cleaned first: a flat background is cut away, and original logo colors are preserved for the Deep Blue Metallic paint. Turn that off with the checkbox under the upload button.
 
 ### Adjusting a placement
 

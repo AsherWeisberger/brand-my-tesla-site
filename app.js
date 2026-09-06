@@ -25,13 +25,13 @@
      ordered the way the decal reads (TL = top-left of the logo as the viewer sees it). ---------- */
   const Q = BMT_QUADS;
   const VIEWS = [
-    { id: 'front34', label: 'Front ¾', src: 'cars/hero-34.jpg', quads: Q.front34 },
-    { id: 'front', label: 'Front', src: 'cars/front.jpg', quads: Q.front },
-    { id: 'side-l', label: 'Driver side', src: 'cars/side.jpg', quads: Q['side-l'] },
-    { id: 'side-r', label: 'Passenger side', src: 'cars/side.jpg', flip: true, quads: renameQuads(Q['side-l'], { 'door-fl': 'door-fr', 'door-rl': 'door-rr' }) },
-    { id: 'rear34', label: 'Rear ¾', src: 'cars/rear-34.jpg', quads: Q.rear34 },
-    { id: 'rear', label: 'Rear', src: 'cars/rear.jpg', quads: Q.rear },
-    { id: 'aerial', label: 'Aerial', src: 'cars/aerial.jpg', quads: Q.aerial },
+    { id: 'front34', label: 'Front ¾', src: 'cars/hero-34-blue.jpg', quads: Q.front34 },
+    { id: 'front', label: 'Front', src: 'cars/front-blue.jpg', quads: Q.front },
+    { id: 'side-l', label: 'Driver side', src: 'cars/side-blue.jpg', quads: Q['side-l'] },
+    { id: 'side-r', label: 'Passenger side', src: 'cars/side-blue.jpg', flip: true, quads: renameQuads(Q['side-l'], { 'door-fl': 'door-fr', 'door-rl': 'door-rr' }) },
+    { id: 'rear34', label: 'Rear ¾', src: 'cars/rear-34-blue.jpg', quads: Q.rear34 },
+    { id: 'rear', label: 'Rear', src: 'cars/rear-blue.jpg', quads: Q.rear },
+    { id: 'aerial', label: 'Aerial', src: 'cars/aerial-blue.jpg', quads: Q.aerial },
   ];
   const viewById = Object.fromEntries(VIEWS.map(v => [v.id, v]));
 
@@ -166,30 +166,30 @@
     return c;
   }
   const MARKS = {
-    hood:      r => textSticker('YOUR BRAND', r, '#202323', { cap: 0.8 }),
-    trunk:     r => { const c = stickerCanvas(r), x = c.getContext('2d'), H = c.artH; x.fillStyle = '#263b68';
+    hood:      r => textSticker('YOUR BRAND', r, '#f4f3ed', { cap: 0.8 }),
+    trunk:     r => { const c = stickerCanvas(r), x = c.getContext('2d'), H = c.artH; x.fillStyle = '#e1eaff';
                  x.textAlign = 'left'; x.textBaseline = 'middle';
                  const size = fitFontSize(x, 'northwind', s => `700 ${s}px ${SANS}`, c.width * 0.70, H * 0.55); x.font = `700 ${size}px ${SANS}`;
                  const tw = x.measureText('northwind').width, mark = size * 0.62, total = tw + mark + size * 0.24, x0 = (c.width - total) / 2;
                  x.beginPath(); x.moveTo(x0, H / 2 + mark / 2); x.lineTo(x0 + mark / 2, H / 2 - mark / 2); x.lineTo(x0 + mark, H / 2 + mark / 2); x.closePath(); x.fill();
                  x.fillText('northwind', x0 + mark + size * 0.25, H / 2 + size * 0.04); return c; },
-    'door-fl': r => textSticker('KESTREL', r, '#b83d2c', { weight: 650, spacing: 0.10, cap: 0.42 }),
-    'door-fr': r => textSticker('Lumen', r, '#145a3a', { family: SERIF, style: 'italic', weight: 400, cap: 0.95 }),
-    'door-rl': r => { const c = stickerCanvas(r), x = c.getContext('2d'), H = c.artH; x.fillStyle = x.strokeStyle = '#275db6';
+    'door-fl': r => textSticker('KESTREL', r, '#ffc6ac', { weight: 650, spacing: 0.10, cap: 0.42 }),
+    'door-fr': r => textSticker('Lumen', r, '#c7efd6', { family: SERIF, style: 'italic', weight: 400, cap: 0.95 }),
+    'door-rl': r => { const c = stickerCanvas(r), x = c.getContext('2d'), H = c.artH; x.fillStyle = x.strokeStyle = '#d0e5ff';
                  x.textAlign = 'left'; x.textBaseline = 'middle';
                  const size = fitFontSize(x, 'ORBIT', s => `700 ${s}px ${SANS}`, c.width * 0.68, H * 0.58); x.font = `700 ${size}px ${SANS}`;
                  const tw = x.measureText('ORBIT').width, R = size * 0.32, total = tw + R * 2.25 + size * 0.24, x0 = (c.width - total) / 2;
                  x.lineWidth = R * 0.34; x.beginPath(); x.arc(x0 + R, H / 2, R, 0, Math.PI * 2); x.stroke();
                  x.beginPath(); x.arc(x0 + R * 1.95, H / 2, R * 0.25, 0, Math.PI * 2); x.fill();
                  x.fillText('ORBIT', x0 + R * 2.25 + size * 0.24, H / 2 + size * 0.04); return c; },
-    'door-rr': r => { const c = stickerCanvas(r), x = c.getContext('2d'), H = c.artH; x.fillStyle = '#141311';
+    'door-rr': r => { const c = stickerCanvas(r), x = c.getContext('2d'), H = c.artH; x.fillStyle = '#f4f3ed';
                  x.textAlign = 'left'; x.textBaseline = 'middle';
                  const size = fitFontSize(x, 'hexa', s => `700 ${s}px ${SANS}`, c.width * 0.5, H * 0.58); x.font = `700 ${size}px ${SANS}`;
                  const tw = x.measureText('hexa').width, R = size * 0.42, total = tw + R * 2 + size * 0.22, x0 = (c.width - total) / 2, cx = x0 + R, cy = H / 2;
                  x.beginPath(); for (let k = 0; k < 6; k++) { const an = Math.PI / 6 + k * Math.PI / 3; x[k ? 'lineTo' : 'moveTo'](cx + R * Math.cos(an), cy + R * Math.sin(an)); } x.closePath(); x.fill();
                  x.fillText('hexa', x0 + R * 2 + size * 0.22, H / 2 + size * 0.04); return c; },
-    'bumper-f': r => textSticker('PALM', r, '#7a4b2a', { spacing: 0.4, cap: 0.62 }),
-    'bumper-r': r => textSticker('Verde', r, '#2f7d3a', { family: SERIF, weight: 400, cap: 0.92 }),
+    'bumper-f': r => textSticker('PALM', r, '#f3dbb2', { spacing: 0.4, cap: 0.62 }),
+    'bumper-r': r => textSticker('Verde', r, '#c7efd6', { family: SERIF, weight: 400, cap: 0.92 }),
   };
   async function imageSticker(src, ratio) {
     const im = await loadImage(src); if (!im) return null;
@@ -204,11 +204,11 @@
     const held = topBid(spot.id);
     let key, make, kind = 'vinyl';
     if (held && held.logo) { key = 'held:' + held.logo.slice(0, 64) + held.at; make = () => imageSticker(held.logo, spot.ratio); }
-    else if (held) { key = 'heldtext:' + held.company; make = () => textSticker(held.company, spot.ratio, '#141311'); }
+    else if (held) { key = 'heldtext:' + held.company; make = () => textSticker(held.company, spot.ratio, '#f4f3ed'); }
     else if (state.previewLogo) { key = 'prev:' + state.previewLogo.slice(-80) + state.previewLogo.length; make = () => imageSticker(state.previewLogo, spot.ratio); }
-    else if (state.previewText) { key = 'text:' + state.previewText; make = () => textSticker(state.previewText, spot.ratio, '#141311'); }
+    else if (state.previewText) { key = 'text:' + state.previewText; make = () => textSticker(state.previewText, spot.ratio, '#f4f3ed'); }
     else if (state.demo) { key = 'demo'; make = () => MARKS[spot.id](spot.ratio); kind = 'open'; }
-    else { key = 'ghost'; make = () => textSticker(spot.name.toUpperCase(), spot.ratio, 'rgba(20,19,17,.5)', { weight: 600, spacing: 0.18, cap: 0.42 }); kind = 'ghost'; }
+    else { key = 'ghost'; make = () => textSticker(spot.name.toUpperCase(), spot.ratio, 'rgba(244,243,237,.7)', { weight: 600, spacing: 0.18, cap: 0.42 }); kind = 'ghost'; }
     key += '|' + spot.id + '|' + spot.ratio;
     if (!stickerCache.has(key)) stickerCache.set(key, Promise.resolve(make()));
     return { canvas: await stickerCache.get(key), kind };
@@ -664,9 +664,7 @@
     fr.onerror = () => { toast('The file could not be read. Please choose it again.'); const btn = document.getElementById('bid-submit'); btn.disabled = false; btn.textContent = 'Send bid request'; };
     fr.readAsDataURL(file);
   }
-  // Turns an uploaded logo into something a vinyl shop would cut for white paint:
-  // downscale, detect a flat background from the border pixels, make it transparent,
-  // and if the background was dark, invert so the mark reads dark on white.
+  // Remove flat upload backgrounds while preserving the original artwork colors.
   function processLogo(dataUrl, type, cutout, cb) {
     if (type === 'image/svg+xml') return cb(dataUrl, { note: 'SVG used as is.' });
     const im = new Image();
@@ -692,15 +690,8 @@
           if (uniform < 0.8) {
             note = 'No flat background found, used as uploaded.';
           } else {
-            const luma = 0.299 * avg[0] + 0.587 * avg[1] + 0.114 * avg[2];
-            let bg = avg;
-            if (luma < 110) {
-              for (let i = 0; i < d.length; i += 4) { d[i] = 255 - d[i]; d[i + 1] = 255 - d[i + 1]; d[i + 2] = 255 - d[i + 2]; }
-              bg = avg.map(v => 255 - v);
-              note = 'Background removed. Colors inverted so the mark reads as dark vinyl on white paint.';
-            } else {
-              note = 'Background removed.';
-            }
+            const bg = avg;
+            note = 'Background removed. Original logo colors preserved.';
             const t0 = 28, t1 = 96;
             for (let i = 0; i < d.length; i += 4) {
               const dd = Math.hypot(d[i] - bg[0], d[i + 1] - bg[1], d[i + 2] - bg[2]);
@@ -914,7 +905,7 @@
     if (view.flip) { ctx.translate(IMG_W, 0); ctx.scale(-1, 1); }
     if (img && img.naturalWidth) ctx.drawImage(img, 0, 0, IMG_W, IMG_H);
     if (vin && vin.width) {
-      ctx.globalCompositeOperation = vin.classList.contains('gl') ? 'source-over' : 'multiply';
+      ctx.globalCompositeOperation = 'source-over';
       ctx.drawImage(vin, 0, 0, IMG_W, IMG_H);
     }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
