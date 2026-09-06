@@ -4,7 +4,9 @@
 // These are illustrative projections; installation dimensions require the actual vehicle.
 const BMT_QUADS = {
   "front34": {
-    "hood": {"c": [[607,463],[857,458],[662,529],[456,524]], "bow": [[0,-3],[3,-2],[0,5],[-3,-2]], "wrap": [12,18]},
+    // Center the artwork on the projected windshield-midpoint → hood-badge axis.
+    // Both transverse edges follow the hood rather than the horizontal image axis.
+    "hood": {"c": [[523,465],[777,473],[663,519],[421,505]], "bow": [[0,-2],[1,-1],[0,2],[-1,-1]], "wrap": [8,10]},
     "door-fr": {"c": [[1030,518],[1187,506],[1187,596],[1033,625]], "bow": [[0,-2],[2,0],[0,3],[-1,0]], "wrap": [8,5]},
     "door-rr": {"c": [[1230,502],[1328,488],[1307,570],[1227,586]], "bow": [[0,-1],[2,0],[0,2],[-1,0]], "wrap": [10,5]},
     "bumper-f": {"c": [[387,599],[533,601],[533,641],[387,635]], "bow": [[0,-2],[1,0],[0,2],[-2,0]], "wrap": [22,5]}
