@@ -18,15 +18,17 @@ const BMT_QUADS = {
     "door-rl": {"c": [[995,526],[1205,517],[1177,613],[996,627]], "bow": [[0,-1],[2,0],[0,2],[-1,0]], "wrap": [6,5]}
   },
   "rear34": {
-    // Rear three-quarter: keep the trunk logo above the lid break, and keep both door marks
+    // Trunk decal lies on the horizontal deck between the rear glass and trailing lip.
+    // Its shallow projected height follows the deck plane, not the vertical license-plate recess.
+    // Keep both door marks
     // inside the painted door skins, clear of handles, glass and the wheel arch.
-    "trunk": {"c": [[365,451],[646,457],[637,522],[366,520]], "bow": [[0,-2],[1,0],[0,2],[-1,0]], "wrap": [6,3]},
+    "trunk": {"c": [[484,374],[716,373],[671,396],[418,392]], "bow": [[0,-1],[0,0],[0,-1],[0,0]], "wrap": [4,2]},
     "bumper-r": {"c": [[352,602],[655,611],[657,668],[350,659]], "bow": [[0,-3],[1,0],[0,3],[-1,0]], "wrap": [7,2]},
     "door-rl": {"c": [[1080,478],[1250,487],[1246,598],[1097,594]], "bow": [[0,-1],[1,0],[0,2],[1,0]], "wrap": [4,3]},
     "door-fl": {"c": [[1260,482],[1432,491],[1422,601],[1260,605]], "bow": [[0,-1],[1,0],[0,2],[-1,0]], "wrap": [3,3]}
   },
   "rear": {
-    "trunk": {"c": [[694,437],[1098,437],[1093,518],[699,518]], "bow": [[0,-3],[1,0],[0,2],[-1,0]], "wrap": [10,4]},
+    "trunk": {"c": [[715,245],[1080,245],[1105,265],[690,265]], "bow": [[0,-1],[0,0],[0,-1],[0,0]], "wrap": [4,2]},
     "bumper-r": {"c": [[729,623],[1073,623],[1078,676],[724,676]], "bow": [[0,-3],[2,0],[0,-2],[-2,0]], "wrap": [14,4]}
   }
 };

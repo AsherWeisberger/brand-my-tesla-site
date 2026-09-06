@@ -11,7 +11,7 @@
   /* ---------- Spots ---------- */
   const SPOTS = [
     { id: 'hood',     name: 'Hood',                where: 'Center of the hood, the marquee',      size: 'Large',  cm: '90 × 35 cm', in: '35.4 × 13.8 in', floor: 1000, ratio: 90 / 35,       view: 'front34' },
-    { id: 'trunk',    name: 'Trunk lid',           where: 'Center of the trunk, under the badge', size: 'Large',  cm: '50 × 15 cm', in: '19.7 × 5.9 in',  floor: 1000, ratio: 50 / 15, view: 'rear' },
+    { id: 'trunk',    name: 'Trunk lid',           where: 'Top of the trunk, directly below the rear windshield', size: 'Large',  cm: '50 × 15 cm', in: '19.7 × 5.9 in',  floor: 1000, ratio: 50 / 15, view: 'rear34' },
     { id: 'door-fl',  name: 'Driver door',         where: 'Front door, driver side',              size: 'Large',  cm: '60 × 30 cm', in: '23.6 × 11.8 in', floor: 750,  ratio: 2,       view: 'side-l' },
     { id: 'door-fr',  name: 'Passenger door',      where: 'Front door, passenger side',           size: 'Large',  cm: '60 × 30 cm', in: '23.6 × 11.8 in', floor: 750,  ratio: 2,       view: 'front34' },
     { id: 'door-rl',  name: 'Driver rear door',    where: 'Rear door, driver side',               size: 'Medium', cm: '45 × 22 cm', in: '17.7 × 8.7 in',  floor: 500,  ratio: 2,       view: 'side-l' },
