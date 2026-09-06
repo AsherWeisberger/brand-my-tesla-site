@@ -6,7 +6,7 @@ Static site, no build step. Open `index.html` or serve the folder.
 ## How the car renderings work
 
 The old site asked an image generator to draw logos on the car, which produced garbled text and
-misplaced boxes. This version uses six clean studio photos of the car and maps logos onto the
+misplaced boxes. This version offers seven studio views of the car and maps logos onto the
 panels with code:
 
 - `cars/*.jpg` are the base photos (1792 x 1008). Passenger side is the driver side photo mirrored.
@@ -46,7 +46,7 @@ plus "driver door open" or "frunk open" or "trunk open".
 
 ### Handy URL params
 
-- `?view=rear34` opens on a given angle: `front34`, `front`, `side-l`, `side-r`, `rear34`, `rear`
+- `?view=rear34` opens on a given angle: `front34`, `front`, `side-l`, `side-r`, `rear34`, `rear`, `aerial`
 - `?spot=trunk` preselects a spot: `hood`, `trunk`, `door-fl`, `door-fr`, `door-rl`, `door-rr`, `bumper-f`, `bumper-r`
 - `?text=ACME` previews a brand name on every open spot
 - `?logo=cars/some-file.png` previews a same origin logo file from a link

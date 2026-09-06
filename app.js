@@ -31,6 +31,7 @@
     { id: 'side-r', label: 'Passenger side', src: 'cars/side.jpg', flip: true, quads: renameQuads(Q['side-l'], { 'door-fl': 'door-fr', 'door-rl': 'door-rr' }) },
     { id: 'rear34', label: 'Rear ¾', src: 'cars/rear-34.jpg', quads: Q.rear34 },
     { id: 'rear', label: 'Rear', src: 'cars/rear.jpg', quads: Q.rear },
+    { id: 'aerial', label: 'Aerial', src: 'cars/aerial.jpg', quads: Q.aerial },
   ];
   const viewById = Object.fromEntries(VIEWS.map(v => [v.id, v]));
 
